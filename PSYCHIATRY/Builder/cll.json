@@ -1,97 +1,321 @@
-{
-  "step_name": "create-general-concepts.sql",
-  "description": "Registers the custom PSYCHIATRY vocabulary by inserting a standard concept and linking it in vocab.vocabulary.",
+[
+  {
+    "step_name": "create-general-concepts.sql",
+    "description": "Registers the custom PSYCHIATRY vocabulary by inserting a standard concept and linking it in vocab.vocabulary.",
+    "table_nodes": [
+      {
+        "table": "vocab.concept",
+        "operation": "INSERT",
+        "columns": [
+          "concept_id",
+          "concept_name",
+          "domain_id",
+          "vocabulary_id",
+          "concept_class_id",
+          "standard_concept",
+          "concept_code",
+          "valid_start_date",
+          "valid_end_date",
+          "invalid_reason"
+        ]
+      },
+      {
+        "table": "vocab.vocabulary",
+        "operation": "INSERT",
+        "columns": [
+          "vocabulary_id",
+          "vocabulary_name",
+          "vocabulary_reference",
+          "vocabulary_version",
+          "vocabulary_concept_id"
+        ]
+      }
+    ],
+    "lineage_edges": [
+      { "source": { "type": "CONST", "value": 2072499999 }, "target": { "table": "vocab.concept", "column": "concept_id" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": "PSYCHIATRY" }, "target": { "table": "vocab.concept", "column": "concept_name" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": "Metadata" }, "target": { "table": "vocab.concept", "column": "domain_id" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": "Vocabulary" }, "target": { "table": "vocab.concept", "column": "vocabulary_id" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": "Vocabulary" }, "target": { "table": "vocab.concept", "column": "concept_class_id" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": "S" }, "target": { "table": "vocab.concept", "column": "standard_concept" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": "OMOP generated" }, "target": { "table": "vocab.concept", "column": "concept_code" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": "now()::date" }, "target": { "table": "vocab.concept", "column": "valid_start_date" }, "transform": "now()::date" },
+      { "source": { "type": "CONST", "value": "2099-12-31" }, "target": { "table": "vocab.concept", "column": "valid_end_date" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": null }, "target": { "table": "vocab.concept", "column": "invalid_reason" }, "transform": "IDENTITY" },
+
+      { "source": { "type": "CONST", "value": "PSYCHIATRY" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_id" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": "PSYCHIATRY Custom Terminology" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_name" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": "OMOP generated" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_reference" }, "transform": "IDENTITY" },
+      { "source": { "type": "CONST", "value": "now()::date" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_version" }, "transform": "now()::date" },
+      { "source": { "type": "TABLE", "table": "vocab.concept", "column": "concept_id" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_concept_id" }, "transform": "fixed literal 2072499999 inserted in this step", "notes": "Vocabulary points to its defining concept" }
+    ]
+  },
+  {
+    "step_name": "source-ddl.sql",
+    "description": "Create staging and helper tables in temp schema; ensure permanent helper tables exist in vocab.",
+    "table_nodes": [
+      {
+        "table": "temp.psych_mapping",
+        "operation": "CREATE",
+        "columns": [
+          "source_concept_code","source_concept_id","source_vocabulary_id","source_description",
+          "source_description_synonym","clinical_expert_specialty","relationship_id","predicate_id",
+          "confidence","target_concept_id","target_concept_name","target_vocabulary_id","target_domain_id",
+          "mapping_justification","author_label","decision","review_date_mm_dd_yy","reviewer_name",
+          "reviewer_specialty","reviewer_comment","author_comment","orcid_id","status","site_name",
+          "change_required","final_decision","final_comment"
+        ]
+      },
+      {
+        "table": "temp.source_to_update",
+        "operation": "CREATE",
+        "columns": [
+          "source_concept_code","source_concept_id","source_vocabulary_id","source_domain_id",
+          "source_concept_class_id","source_description","source_description_synonym","valid_start",
+          "relationship_id","predicate_id","confidence","target_concept_id","target_concept_code",
+          "target_concept_name","target_vocabulary_id","target_domain_id","decision","review_date",
+          "reviewer_name","reviewer_specialty","reviewer_comment","orcid_id","reviewer_affiliation_name",
+          "status","author_comment","change_required"
+        ]
+      },
+      {
+        "table": "temp.vocab_logger",
+        "operation": "CREATE",
+        "columns": ["log_desc","log_count"]
+      },
+      {
+        "table": "vocab.mapping_exceptions",
+        "operation": "CREATE_IF_NOT_EXISTS",
+        "columns": ["concept_id"]
+      },
+      {
+        "table": "vocab.review_ids",
+        "operation": "CREATE_IF_NOT_EXISTS",
+        "columns": ["name","id"]
+      }
+    ],
+    "lineage_edges": []
+  },
+  {
+  "step_name": "load-source.sql",
+  "description": "Normalize and type raw mappings from temp.psych_mapping into temp.source_to_update with trims, casts, defaults, and filters for non-blank code/description.",
   "table_nodes": [
     {
-      "table": "vocab.concept",
-      "operation": "INSERT",
+      "table": "temp.source_to_update",
+      "operation": "INSERT_SELECT",
       "columns": [
-        "concept_id",
-        "concept_name",
-        "domain_id",
-        "vocabulary_id",
-        "concept_class_id",
-        "standard_concept",
-        "concept_code",
-        "valid_start_date",
-        "valid_end_date",
-        "invalid_reason"
-      ]
-    },
-    {
-      "table": "vocab.vocabulary",
-      "operation": "INSERT",
-      "columns": [
-        "vocabulary_id",
-        "vocabulary_name",
-        "vocabulary_reference",
-        "vocabulary_version",
-        "vocabulary_concept_id"
+        "source_concept_code",
+        "source_concept_id",
+        "source_vocabulary_id",
+        "source_domain_id",
+        "source_concept_class_id",
+        "source_description",
+        "source_description_synonym",
+        "valid_start",
+        "relationship_id",
+        "predicate_id",
+        "confidence",
+        "target_concept_id",
+        "target_concept_code",
+        "target_concept_name",
+        "target_vocabulary_id",
+        "target_domain_id",
+        "decision",
+        "review_date",
+        "reviewer_name",
+        "reviewer_specialty",
+        "reviewer_comment",
+        "orcid_id",
+        "reviewer_affiliation_name",
+        "status",
+        "author_comment",
+        "change_required"
       ]
     }
   ],
   "lineage_edges": [
-    { "source": { "type": "CONST", "value": 2072499999 }, "target": { "table": "vocab.concept", "column": "concept_id" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": "PSYCHIATRY" }, "target": { "table": "vocab.concept", "column": "concept_name" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": "Metadata" }, "target": { "table": "vocab.concept", "column": "domain_id" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": "Vocabulary" }, "target": { "table": "vocab.concept", "column": "vocabulary_id" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": "Vocabulary" }, "target": { "table": "vocab.concept", "column": "concept_class_id" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": "S" }, "target": { "table": "vocab.concept", "column": "standard_concept" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": "OMOP generated" }, "target": { "table": "vocab.concept", "column": "concept_code" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": "now()::date" }, "target": { "table": "vocab.concept", "column": "valid_start_date" }, "transform": "now()::date" },
-    { "source": { "type": "CONST", "value": "2099-12-31" }, "target": { "table": "vocab.concept", "column": "valid_end_date" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": null }, "target": { "table": "vocab.concept", "column": "invalid_reason" }, "transform": "IDENTITY" },
-
-    { "source": { "type": "CONST", "value": "PSYCHIATRY" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_id" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": "PSYCHIATRY Custom Terminology" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_name" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": "OMOP generated" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_reference" }, "transform": "IDENTITY" },
-    { "source": { "type": "CONST", "value": "now()::date" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_version" }, "transform": "now()::date" },
-    { "source": { "type": "TABLE", "table": "vocab.concept", "column": "concept_id" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_concept_id" }, "transform": "fixed literal 2072499999 inserted in this step", "notes": "Vocabulary points to its defining concept" }
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "source_concept_code" }, "target": { "table": "temp.source_to_update", "column": "source_concept_code" }, "transform": "TRIM(LEFT(source_concept_code,50))" },
+    { "source": { "type": "CONST", "value": null }, "target": { "table": "temp.source_to_update", "column": "source_concept_id" }, "transform": "NULL literal" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "source_vocabulary_id" }, "target": { "table": "temp.source_to_update", "column": "source_vocabulary_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "target_domain_id" }, "target": { "table": "temp.source_to_update", "column": "source_domain_id" }, "transform": "COALESCE(target_domain_id,'Metadata') - branch when NOT NULL" },
+    { "source": { "type": "CONST", "value": "Metadata" }, "target": { "table": "temp.source_to_update", "column": "source_domain_id" }, "transform": "COALESCE fallback when target_domain_id IS NULL", "notes": "Default domain for rows lacking target_domain_id" },
+    { "source": { "type": "CONST", "value": "Suppl Concept" }, "target": { "table": "temp.source_to_update", "column": "source_concept_class_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "source_description" }, "target": { "table": "temp.source_to_update", "column": "source_description" }, "transform": "LEFT(...,255)" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "source_description_synonym" }, "target": { "table": "temp.source_to_update", "column": "source_description_synonym" }, "transform": "LEFT(...,255)" },
+    { "source": { "type": "CONST", "value": "CURRENT_DATE" }, "target": { "table": "temp.source_to_update", "column": "valid_start" }, "transform": "CURRENT_DATE" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "relationship_id" }, "target": { "table": "temp.source_to_update", "column": "relationship_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "predicate_id" }, "target": { "table": "temp.source_to_update", "column": "predicate_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "confidence" }, "target": { "table": "temp.source_to_update", "column": "confidence" }, "transform": "::FLOAT" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "target_concept_id" }, "target": { "table": "temp.source_to_update", "column": "target_concept_id" }, "transform": "::INTEGER" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "target_concept_code" }, "target": { "table": "temp.source_to_update", "column": "target_concept_code" }, "transform": "IDENTITY (NULL in CTE; passes through as NULL)" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "target_concept_name" }, "target": { "table": "temp.source_to_update", "column": "target_concept_name" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "target_vocabulary_id" }, "target": { "table": "temp.source_to_update", "column": "target_vocabulary_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "target_domain_id" }, "target": { "table": "temp.source_to_update", "column": "target_domain_id" }, "transform": "INITCAP(target_domain_id)" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "decision" }, "target": { "table": "temp.source_to_update", "column": "decision" }, "transform": "::INT" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "review_date_mm_dd_yy" }, "target": { "table": "temp.source_to_update", "column": "review_date" }, "transform": "::DATE" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "reviewer_name" }, "target": { "table": "temp.source_to_update", "column": "reviewer_name" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "reviewer_specialty" }, "target": { "table": "temp.source_to_update", "column": "reviewer_specialty" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "reviewer_comment" }, "target": { "table": "temp.source_to_update", "column": "reviewer_comment" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "orcid_id" }, "target": { "table": "temp.source_to_update", "column": "orcid_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": null }, "target": { "table": "temp.source_to_update", "column": "reviewer_affiliation_name" }, "transform": "NULL literal" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "status" }, "target": { "table": "temp.source_to_update", "column": "status" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "author_comment" }, "target": { "table": "temp.source_to_update", "column": "author_comment" }, "transform": "IDENTITY" },
+    { "source": { "type": "TABLE", "table": "temp.psych_mapping", "column": "change_required" }, "target": { "table": "temp.source_to_update", "column": "change_required" }, "transform": "IDENTITY" }
+  ],
+  "filters": [
+    "NULLIF(TRIM(LEFT(source_concept_code,50)),'') IS NOT NULL",
+    "NULLIF(TRIM(LEFT(source_description,50)),'') IS NOT NULL"
   ]
 },
 {
-  "step_name": "source-ddl.sql",
-  "description": "Create staging and helper tables in temp schema; ensure permanent helper tables exist in vocab.",
+  "step_name": "evaluate-difference.sql",
+  "description": "Builds check/working tables to compare staged mappings with existing vocab concepts, separating potential standard vs. non-standard customs, deduplicating, and excluding previously mapped rows.",
   "table_nodes": [
     {
-      "table": "temp.psych_mapping",
-      "operation": "CREATE",
-      "columns": [
-        "source_concept_code","source_concept_id","source_vocabulary_id","source_description",
-        "source_description_synonym","clinical_expert_specialty","relationship_id","predicate_id",
-        "confidence","target_concept_id","target_concept_name","target_vocabulary_id","target_domain_id",
-        "mapping_justification","author_label","decision","review_date_mm_dd_yy","reviewer_name",
-        "reviewer_specialty","reviewer_comment","author_comment","orcid_id","status","site_name",
-        "change_required","final_decision","final_comment"
-      ]
+      "table": "temp.CONCEPT_CHECK_S",
+      "operation": "CTAS",
+      "columns": "*",
+      "notes": "LEFT JOIN temp.source_to_update (sc) to vocab.concept (co) on UPPER(TRIM(sc.source_concept_code)) = UPPER(TRIM(co.concept_code)); co filtered to concept_id in (2071500001..2072499999) and standard_concept = 'S'; WHERE sc.predicate_id = 'skos:noMatch' OR sc.source_description NOT IN (SELECT source_description FROM temp.source_to_update WHERE predicate_id = 'skos:exactMatch')."
     },
     {
-      "table": "temp.source_to_update",
-      "operation": "CREATE",
-      "columns": [
-        "source_concept_code","source_concept_id","source_vocabulary_id","source_domain_id",
-        "source_concept_class_id","source_description","source_description_synonym","valid_start",
-        "relationship_id","predicate_id","confidence","target_concept_id","target_concept_code",
-        "target_concept_name","target_vocabulary_id","target_domain_id","decision","review_date",
-        "reviewer_name","reviewer_specialty","reviewer_comment","orcid_id","reviewer_affiliation_name",
-        "status","author_comment","change_required"
-      ]
+      "table": "temp.SRC_DESC_MATCH",
+      "operation": "CTAS",
+      "columns": "*",
+      "notes": "Initial copy of temp.CONCEPT_CHECK_S; later rows are removed by DELETE filters."
     },
     {
-      "table": "temp.vocab_logger",
-      "operation": "CREATE",
-      "columns": ["log_desc","log_count"]
+      "table": "temp.CONCEPT_CHECK_S_RAW",
+      "operation": "CTAS",
+      "columns": "*",
+      "notes": "Snapshot of temp.CONCEPT_CHECK_S before downstream deletions."
     },
     {
-      "table": "vocab.mapping_exceptions",
-      "operation": "CREATE_IF_NOT_EXISTS",
-      "columns": ["concept_id"]
+      "table": "temp.CONCEPT_CHECK_NS",
+      "operation": "CTAS",
+      "columns": "*",
+      "notes": "LEFT JOIN temp.source_to_update (sc) to vocab.concept (co) on UPPER(TRIM(sc.source_concept_code)) = UPPER(TRIM(co.concept_code)); co filtered to concept_id in (2071500001..2072499999) and standard_concept IS NULL."
     },
     {
-      "table": "vocab.review_ids",
-      "operation": "CREATE_IF_NOT_EXISTS",
-      "columns": ["name","id"]
+      "table": "temp.CONCEPT_CHECK_NS_RAW",
+      "operation": "CTAS",
+      "columns": "*",
+      "notes": "Snapshot of temp.CONCEPT_CHECK_NS before downstream deletions."
+    },
+    {
+      "table": "temp.CONCEPT_CHECK_S",
+      "operation": "DELETE",
+      "columns": ["source_description"],
+      "filters": [
+        "DELETE USING (SELECT MIN(ctid) AS ctid, source_description FROM temp.CONCEPT_CHECK_S GROUP BY source_description HAVING COUNT(*) > 1) b WHERE temp.CONCEPT_CHECK_S.source_description = b.source_description AND temp.CONCEPT_CHECK_S.ctid <> b.ctid"
+      ],
+      "notes": "Retain only one row per source_description for standard assignment."
+    },
+    {
+      "table": "temp.SRC_DESC_MATCH",
+      "operation": "DELETE",
+      "columns": ["source_concept_id"],
+      "filters": [
+        "DELETE USING (SELECT source_concept_id FROM temp.CONCEPT_CHECK_S) b WHERE temp.SRC_DESC_MATCH.source_concept_id = b.source_concept_id",
+        "DELETE USING (SELECT concept_id FROM vocab.concept WHERE concept_id > 2000000000) b WHERE temp.SRC_DESC_MATCH.source_concept_id = b.concept_id"
+      ],
+      "notes": "Remove rows already represented in CONCEPT_CHECK_S and any previously mapped (>2,000,000,000) to avoid duplicates."
+    },
+    {
+      "table": "temp.CONCEPT_CHECK_NS",
+      "operation": "DELETE",
+      "columns": ["source_description"],
+      "filters": [
+        "DELETE USING (SELECT MIN(ctid) AS ctid, source_description FROM temp.CONCEPT_CHECK_NS GROUP BY source_description HAVING COUNT(*) > 1) b WHERE temp.CONCEPT_CHECK_NS.source_description = b.source_description AND temp.CONCEPT_CHECK_NS.ctid <> b.ctid",
+        "DELETE WHERE concept_name IS NOT NULL"
+      ],
+      "notes": "Keep only unique source_descriptions and exclude rows where a matching non-standard concept already exists (concept_name present)."
     }
   ],
-  "lineage_edges": []
+  "lineage_edges": [
+    {
+      "source": { "type": "TABLE", "table": "temp.source_to_update", "column": "source_concept_code" },
+      "target": { "table": "temp.CONCEPT_CHECK_S", "column": "*" },
+      "transform": "JOIN ON UPPER(TRIM(source_concept_code)) = UPPER(TRIM(concept_code))",
+      "notes": "co: vocab.concept filtered to standard_concept='S' and concept_id between 2071500000 and 2072500000"
+    },
+    {
+      "source": { "type": "TABLE", "table": "vocab.concept", "column": "concept_code" },
+      "target": { "table": "temp.CONCEPT_CHECK_S", "column": "*" },
+      "transform": "JOIN + FILTER standard_concept='S' AND concept_id BETWEEN 2071500000 AND 2072500000"
+    },
+    {
+      "source": { "type": "TABLE", "table": "temp.source_to_update", "column": "predicate_id" },
+      "target": { "table": "temp.CONCEPT_CHECK_S", "column": "*" },
+      "transform": "FILTER WHERE predicate_id = 'skos:noMatch' OR source_description NOT IN (SELECT source_description FROM temp.source_to_update WHERE predicate_id='skos:exactMatch')"
+    },
+    {
+      "source": { "type": "TABLE", "table": "temp.CONCEPT_CHECK_S", "column": "*" },
+      "target": { "table": "temp.SRC_DESC_MATCH", "column": "*" },
+      "transform": "CTAS COPY"
+    },
+    {
+      "source": { "type": "TABLE", "table": "temp.CONCEPT_CHECK_S", "column": "*" },
+      "target": { "table": "temp.CONCEPT_CHECK_S_RAW", "column": "*" },
+      "transform": "CTAS SNAPSHOT"
+    },
+    {
+      "source": { "type": "TABLE", "table": "temp.source_to_update", "column": "source_concept_code" },
+      "target": { "table": "temp.CONCEPT_CHECK_NS", "column": "*" },
+      "transform": "JOIN ON UPPER(TRIM(source_concept_code)) = UPPER(TRIM(concept_code))",
+      "notes": "co: vocab.concept filtered to standard_concept IS NULL and concept_id between 2071500000 and 2072500000"
+    },
+    {
+      "source": { "type": "TABLE", "table": "vocab.concept", "column": "concept_code" },
+      "target": { "table": "temp.CONCEPT_CHECK_NS", "column": "*" },
+      "transform": "JOIN + FILTER standard_concept IS NULL AND concept_id BETWEEN 2071500000 AND 2072500000"
+    },
+    {
+      "source": { "type": "TABLE", "table": "temp.CONCEPT_CHECK_NS", "column": "*" },
+      "target": { "table": "temp.CONCEPT_CHECK_NS_RAW", "column": "*" },
+      "transform": "CTAS SNAPSHOT"
+    },
+    {
+      "source": { "type": "TABLE", "table": "temp.CONCEPT_CHECK_S", "column": "source_description" },
+      "target": { "table": "temp.CONCEPT_CHECK_S", "column": "source_description" },
+      "transform": "DELETE DUPLICATES USING MIN(ctid) per source_description",
+      "notes": "Keeps first row by ctid."
+    },
+    {
+      "source": { "type": "TABLE", "table": "temp.CONCEPT_CHECK_NS", "column": "source_description" },
+      "target": { "table": "temp.CONCEPT_CHECK_NS", "column": "source_description" },
+      "transform": "DELETE DUPLICATES USING MIN(ctid) per source_description",
+      "notes": "Keeps first row by ctid."
+    },
+    {
+      "source": { "type": "TABLE", "table": "vocab.concept", "column": "concept_id" },
+      "target": { "table": "temp.SRC_DESC_MATCH", "column": "source_concept_id" },
+      "transform": "DELETE WHERE source_concept_id = concept_id AND concept_id > 2000000000",
+      "notes": "Removes previously mapped custom concepts."
+    },
+    {
+      "source": { "type": "TABLE", "table": "temp.CONCEPT_CHECK_S", "column": "source_concept_id" },
+      "target": { "table": "temp.SRC_DESC_MATCH", "column": "source_concept_id" },
+      "transform": "DELETE WHERE source_concept_id IN (SELECT source_concept_id FROM temp.CONCEPT_CHECK_S)",
+      "notes": "Removes rows already represented in CONCEPT_CHECK_S."
+    },
+    {
+      "source": { "type": "TABLE", "table": "temp.CONCEPT_CHECK_NS", "column": "concept_name" },
+      "target": { "table": "temp.CONCEPT_CHECK_NS", "column": "*" },
+      "transform": "DELETE WHERE concept_name IS NOT NULL",
+      "notes": "Exclude rows that already have a matching non-standard concept."
+    }
+  ],
+  "decisions": [
+    {
+      "name": "standard_vs_nonstandard_partition",
+      "condition": "vocab.concept.standard_concept = 'S' (standard) vs IS NULL (non-standard)",
+      "targets": ["temp.CONCEPT_CHECK_S", "temp.CONCEPT_CHECK_NS"]
+    },
+    {
+      "name": "exact_match_exclusion",
+      "condition": "source_description NOT IN (SELECT source_description FROM temp.source_to_update WHERE predicate_id='skos:exactMatch')",
+      "targets": ["temp.CONCEPT_CHECK_S"]
+    }
+  ]
 }
+]
