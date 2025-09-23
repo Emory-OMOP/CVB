@@ -1,0 +1,97 @@
+{
+  "step_name": "create-general-concepts.sql",
+  "description": "Registers the custom PSYCHIATRY vocabulary by inserting a standard concept and linking it in vocab.vocabulary.",
+  "table_nodes": [
+    {
+      "table": "vocab.concept",
+      "operation": "INSERT",
+      "columns": [
+        "concept_id",
+        "concept_name",
+        "domain_id",
+        "vocabulary_id",
+        "concept_class_id",
+        "standard_concept",
+        "concept_code",
+        "valid_start_date",
+        "valid_end_date",
+        "invalid_reason"
+      ]
+    },
+    {
+      "table": "vocab.vocabulary",
+      "operation": "INSERT",
+      "columns": [
+        "vocabulary_id",
+        "vocabulary_name",
+        "vocabulary_reference",
+        "vocabulary_version",
+        "vocabulary_concept_id"
+      ]
+    }
+  ],
+  "lineage_edges": [
+    { "source": { "type": "CONST", "value": 2072499999 }, "target": { "table": "vocab.concept", "column": "concept_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": "PSYCHIATRY" }, "target": { "table": "vocab.concept", "column": "concept_name" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": "Metadata" }, "target": { "table": "vocab.concept", "column": "domain_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": "Vocabulary" }, "target": { "table": "vocab.concept", "column": "vocabulary_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": "Vocabulary" }, "target": { "table": "vocab.concept", "column": "concept_class_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": "S" }, "target": { "table": "vocab.concept", "column": "standard_concept" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": "OMOP generated" }, "target": { "table": "vocab.concept", "column": "concept_code" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": "now()::date" }, "target": { "table": "vocab.concept", "column": "valid_start_date" }, "transform": "now()::date" },
+    { "source": { "type": "CONST", "value": "2099-12-31" }, "target": { "table": "vocab.concept", "column": "valid_end_date" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": null }, "target": { "table": "vocab.concept", "column": "invalid_reason" }, "transform": "IDENTITY" },
+
+    { "source": { "type": "CONST", "value": "PSYCHIATRY" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_id" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": "PSYCHIATRY Custom Terminology" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_name" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": "OMOP generated" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_reference" }, "transform": "IDENTITY" },
+    { "source": { "type": "CONST", "value": "now()::date" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_version" }, "transform": "now()::date" },
+    { "source": { "type": "TABLE", "table": "vocab.concept", "column": "concept_id" }, "target": { "table": "vocab.vocabulary", "column": "vocabulary_concept_id" }, "transform": "fixed literal 2072499999 inserted in this step", "notes": "Vocabulary points to its defining concept" }
+  ]
+},
+{
+  "step_name": "source-ddl.sql",
+  "description": "Create staging and helper tables in temp schema; ensure permanent helper tables exist in vocab.",
+  "table_nodes": [
+    {
+      "table": "temp.psych_mapping",
+      "operation": "CREATE",
+      "columns": [
+        "source_concept_code","source_concept_id","source_vocabulary_id","source_description",
+        "source_description_synonym","clinical_expert_specialty","relationship_id","predicate_id",
+        "confidence","target_concept_id","target_concept_name","target_vocabulary_id","target_domain_id",
+        "mapping_justification","author_label","decision","review_date_mm_dd_yy","reviewer_name",
+        "reviewer_specialty","reviewer_comment","author_comment","orcid_id","status","site_name",
+        "change_required","final_decision","final_comment"
+      ]
+    },
+    {
+      "table": "temp.source_to_update",
+      "operation": "CREATE",
+      "columns": [
+        "source_concept_code","source_concept_id","source_vocabulary_id","source_domain_id",
+        "source_concept_class_id","source_description","source_description_synonym","valid_start",
+        "relationship_id","predicate_id","confidence","target_concept_id","target_concept_code",
+        "target_concept_name","target_vocabulary_id","target_domain_id","decision","review_date",
+        "reviewer_name","reviewer_specialty","reviewer_comment","orcid_id","reviewer_affiliation_name",
+        "status","author_comment","change_required"
+      ]
+    },
+    {
+      "table": "temp.vocab_logger",
+      "operation": "CREATE",
+      "columns": ["log_desc","log_count"]
+    },
+    {
+      "table": "vocab.mapping_exceptions",
+      "operation": "CREATE_IF_NOT_EXISTS",
+      "columns": ["concept_id"]
+    },
+    {
+      "table": "vocab.review_ids",
+      "operation": "CREATE_IF_NOT_EXISTS",
+      "columns": ["name","id"]
+    }
+  ],
+  "lineage_edges": []
+}
