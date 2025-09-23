@@ -67,4 +67,31 @@ flowchart LR
   classDef const fill:#fff2cc,stroke:#cc9900,stroke-width:1px,color:#000,rx:4,ry:4;
   classDef file fill:#e6ffe6,stroke:#339933,stroke-width:1px,color:#000,rx:4,ry:4;
 ```
+### Step 2: source-ddl.sql
+**Purpose:**
+Creates the staging and helper tables used throughout the pipeline: temp.psych_mapping, temp.source_to_update, temp.vocab_logger, and ensures permanent helper tables vocab.mapping_exceptions and vocab.review_ids exist.
 
+**Why it matters:**
+These tables are the workspace and control tables for loading raw mappings, tracking review metadata, logging counts/messages, and handling exception/reviewer lookups. Without them, later steps that load CSVs, transform mappings, and compute deltas have nowhere to land or reference.
+
+```mermaid
+%% Column-level lineage: source-ddl.sql
+%% Styles: table=blue, const=yellow, file=green
+%% (No legend after Step 1)
+
+flowchart LR
+  %% Table nodes created/ensured by this step
+  T_PM[temp.psych_mapping]:::table
+  T_STU[temp.source_to_update]:::table
+  T_VL[temp.vocab_logger]:::table
+  T_ME[vocab.mapping_exceptions]:::table
+  T_RI[vocab.review_ids]:::table
+
+  %% This step is pure DDL (CREATE/DROP/IF NOT EXISTS).
+  %% No incoming column-level lineage from Step 1 (create-general-concepts.sql).
+
+  %% Styles
+  classDef table fill:#e6f2ff,stroke:#3366cc,stroke-width:1px,color:#000,rx:6,ry:6;
+  classDef const fill:#fff2cc,stroke:#cc9900,stroke-width:1px,color:#000,rx:4,ry:4;
+  classDef file fill:#e6ffe6,stroke:#339933,stroke-width:1px,color:#000,rx:4,ry:4;
+```
