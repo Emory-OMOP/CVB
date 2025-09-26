@@ -90,8 +90,8 @@ These tables are the workspace and control tables for loading raw mappings, trac
 %% Pure DDL – creates tables. No column-level lineage from Step 1.
 
 flowchart LR
-  T_PM[temp.psych_mapping]:::table
-  T_STU[temp.source_to_update]:::table
+  T_PM[temp.parquet_will_be_renamed]:::table
+  T_STU[temp.parquet_minor_transformation]:::table
   T_VL[temp.vocab_logger]:::table
   T_ME[vocab.mapping_exceptions]:::table
   T_RI[vocab.review_ids]:::table
@@ -115,8 +115,8 @@ This step converts the raw mapping sheet into a typed, consistent staging shape 
 flowchart LR
 
 %% Tables
-PM[temp.psych_mapping]:::table
-STU[temp.source_to_update]:::table
+PM[temp.parquet_will_be_renamed]:::table
+STU[temp.parquet_minor_transformation]:::table
 
 %% Constants
 K_CLASS[CONST 'Suppl Concept']:::const
