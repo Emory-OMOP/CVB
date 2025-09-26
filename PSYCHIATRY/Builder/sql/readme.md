@@ -5,20 +5,27 @@
 ### Legend
 ```mermaid
 flowchart LR
-
-  subgraph Legend [Legend]
-    L1[Table Node]:::table
-    L2[Const / Literal]:::const
-    L3[File / CSV Input]:::file
-    L4[Logic / Decision]:::logic
-    L5[Sequence / Auto-increment]:::sequence
+ subgraph Legend["Legend"]
+        L1["Table Node"]
+        L2["Const / Literal"]
+        L3["File / CSV Input"]
+        L4["Logic / Decision"]
+        L5["Sequence / Auto-increment"]
+        L6["Relationships"]
   end
 
-  classDef table fill:#e6f2ff,stroke:#3366cc,stroke-width:1px,color:#000,rx:6,ry:6;
-  classDef const fill:#fff2cc,stroke:#cc9900,stroke-width:1px,color:#000,rx:4,ry:4;
-  classDef file fill:#e6ffe6,stroke:#339933,stroke-width:1px,color:#000,rx:4,ry:4;
-  classDef sequence fill:#a3d0D4,stroke:#426871,stroke-width:1px,color:#000,rx:6,ry:6;
-  classDef logic fill:#efe6ff,stroke:#6b3fa0,stroke-width:1px,color:#000,rx:6,ry:6;
+     L1:::table
+     L2:::const
+     L3:::file
+     L4:::logic
+     L5:::sequence
+     L6:::relt
+    classDef table fill:#e6f2ff,stroke:#3366cc,stroke-width:1px,color:#000,rx:6,ry:6
+    classDef const fill:#fff2cc,stroke:#cc9900,stroke-width:1px,color:#000,rx:4,ry:4
+    classDef file fill:#e6ffe6,stroke:#339933,stroke-width:1px,color:#000,rx:4,ry:4
+    classDef sequence fill:#a3d0D4,stroke:#426871,stroke-width:1px,color:#000,rx:6,ry:6
+    classDef logic fill:#efe6ff,stroke:#6b3fa0,stroke-width:1px,color:#000,rx:6,ry:6
+    classDef relt fill:#d3d3d3,stroke:#d3d3d3,stroke-width:1px,color:#000,rx:6,ry:6
 ```
 
 ### Step 1: create-general-concepts
