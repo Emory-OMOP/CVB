@@ -20,4 +20,3 @@ CREATE TABLE IF NOT EXISTS public.concept
 )
 DISTSTYLE AUTO
 ;
-ALTER TABLE public.concept owner to joan;

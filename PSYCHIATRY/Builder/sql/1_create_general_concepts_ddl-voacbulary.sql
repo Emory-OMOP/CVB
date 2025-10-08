@@ -15,4 +15,3 @@ CREATE TABLE IF NOT EXISTS public.vocabulary
 )
 DISTSTYLE AUTO
 ;
-ALTER TABLE public.vocabulary owner to joan;
