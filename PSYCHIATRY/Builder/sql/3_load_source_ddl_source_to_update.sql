@@ -1,0 +1,32 @@
+
+DROP TABLE if EXISTS public.source_to_update;
+
+CREATE TABLE public.source_to_update
+(
+    source_concept_code        TEXT,
+    source_concept_id          INTEGER,
+    source_vocabulary_id       TEXT,
+    source_domain_id           TEXT,
+    source_concept_class_id    TEXT,
+    source_description         TEXT,
+    source_description_synonym TEXT,
+    valid_start                DATE,
+    relationship_id            TEXT,
+    predicate_id               TEXT,
+    confidence                 FLOAT8,
+    target_concept_id          INTEGER,
+    target_concept_code        TEXT,
+    target_concept_name        TEXT,
+    target_vocabulary_id       TEXT,
+    target_domain_id           TEXT,
+    decision                   INTEGER,
+    review_date                DATE,
+    reviewer_name              TEXT,
+    reviewer_specialty         TEXT,
+    reviewer_comment           TEXT,
+    orcid_id                   TEXT,
+    reviewer_affiliation_name  TEXT,
+    status                     TEXT,
+    author_comment             TEXT,
+    change_required            TEXT
+);
