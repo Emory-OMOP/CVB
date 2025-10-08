@@ -2,12 +2,13 @@
 
 # Load credentials from file
 $credentials = @{}
-Get-Content "C:\Users\xzhan50\.aws\redshift_win_dw.txt" | ForEach-Object {
+$credFile = "$env:USERPROFILE\.aws\redshift_win_dw.txt"
+Get-Content $credFile | ForEach-Object {
     $key, $value = $_ -split '=', 2
     $credentials[$key] = $value
 }
 
-$SQL_DIRECTORY = "C:/Users/xzhan50/Documents/GitHub/CVB/PSYCHIATRY/Builder/sql"
+$SQL_DIRECTORY = "./sql"
 
 # Function to run psql commands
 function Run-SQL($sqlCommand, $description) {
