@@ -1,1 +1,4 @@
 .idea
+
+# Ignore everything in Mappings/Emory folders across all projects
+**/Mappings/Emory/
