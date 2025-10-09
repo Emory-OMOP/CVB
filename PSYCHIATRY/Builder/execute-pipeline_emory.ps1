@@ -1,14 +1,54 @@
-# PowerShell script 
+# PowerShell script for Emory Data Pipeline
+# Converts Excel -> Parquet -> S3 -> Redshift
 
-# Step 0:  Load credentials from file for Redshift connection
+# =============================================================================
+# CONFIGURATION VARIABLES
+# =============================================================================
+
+# File paths
+$SQL_DIRECTORY = "./sql"
+$REDSHIFT_CRED_FILE = "$env:USERPROFILE\.aws\redshift_win_dw.txt"
+$AWS_CRED_FILE = "$env:USERPROFILE\.aws\credentials"
+
+# AWS Configuration
+$AWS_PROFILE = "carsanalyst-900040921699"
+
+# Python script
+$PYTHON_SCRIPT = "excel2parquet_s3_emory.py"
+
+# =============================================================================
+# LOAD CREDENTIALS
+# =============================================================================
+
+# Step 0: Load Redshift credentials from file
 $credentials = @{}
-$credFile = "$env:USERPROFILE\.aws\redshift_win_dw.txt"
-Get-Content $credFile | ForEach-Object {
+Get-Content $REDSHIFT_CRED_FILE | ForEach-Object {
     $key, $value = $_ -split '=', 2
     $credentials[$key] = $value
 }
 
-$SQL_DIRECTORY = "./sql"
+# =============================================================================
+# FUNCTIONS
+# =============================================================================
+
+# Function to read AWS credentials from credentials file
+function Get-AWSCredentials($profile) {
+    $credentials = @{}
+    $inProfile = $false
+    
+    Get-Content $AWS_CRED_FILE | ForEach-Object {
+        if ($_ -match "^\[$profile\]") {
+            $inProfile = $true
+        } elseif ($_ -match "^\[.*\]") {
+            $inProfile = $false
+        } elseif ($inProfile -and $_ -match "^(.+?)\s*=\s*(.+)$") {
+            $key = $matches[1].Trim()
+            $value = $matches[2].Trim()
+            $credentials[$key] = $value
+        }
+    }
+    return $credentials
+}
 
 # Function to run psql commands
 function Run-SQL($sqlCommand, $description) {
@@ -18,13 +58,40 @@ function Run-SQL($sqlCommand, $description) {
     & "C:\Program Files\PostgreSQL\17\bin\psql.exe" -h $credentials['host'] -p $credentials['port'] -d $credentials['database'] -U $credentials['user'] --set=sslmode=require @sqlCommand
 }
 
-# Step 1: Convert Excel to Parquet
+# Function to run SQL with AWS credentials substitution
+function Run-SQL-WithAWS($sqlFile, $description, $awsCredentials) {
+    if ($description) { Write-Host $description }
+    
+    # Read the SQL file and substitute placeholders
+    $sqlContent = Get-Content $sqlFile -Raw
+    $sqlContent = $sqlContent -replace '\{ACCESS_KEY\}', $awsCredentials['aws_access_key_id']
+    $sqlContent = $sqlContent -replace '\{SECRET_KEY\}', $awsCredentials['aws_secret_access_key']
+    $sqlContent = $sqlContent -replace '\{SESSION_TOKEN\}', $awsCredentials['aws_session_token']
+    
+    # Execute the SQL
+    $env:PGPASSWORD = $credentials['password']
+    $env:PGCLIENTENCODING = "UTF8"
+    $sqlContent | & "C:\Program Files\PostgreSQL\17\bin\psql.exe" -h $credentials['host'] -p $credentials['port'] -d $credentials['database'] -U $credentials['user'] --set=sslmode=require
+}
+
+# =============================================================================
+# PIPELINE EXECUTION
+# =============================================================================
+
+# Step 1: Convert Excel to Parquet and save it to S3
 Write-Host "Converting Excel to Parquet..." -ForegroundColor Green
-python excel2parquet.py
+python $PYTHON_SCRIPT
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to convert Excel to Parquet"
     exit 1
 }
 
-# Step 2:Create tables
+# Step 2: Create tables for source mapping files
 Run-SQL @("-f", "$SQL_DIRECTORY/2a_source-ddl.sql") "Creating tables..."
+
+# Step 3: Load data from S3 Parquet into psych_mapping table
+Write-Host "Loading data from S3 Parquet..." -ForegroundColor Green
+$awsCredentials = Get-AWSCredentials $AWS_PROFILE
+Run-SQL-WithAWS "$SQL_DIRECTORY/3_load-s3-parquet.sql" "Loading S3 data..." $awsCredentials
+
+# Step 4: Convert raw mappings to source tables
