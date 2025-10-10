@@ -78,7 +78,7 @@ function Run-SQL-WithAWS($sqlFile, $description, $awsCredentials) {
 # PIPELINE EXECUTION
 # =============================================================================
 
-# Step 1: Convert Excel to Parquet and save it to S3
+# Convert Excel to Parquet and save it to S3
 Write-Host "Converting Excel to Parquet..." -ForegroundColor Green
 python $PYTHON_SCRIPT
 if ($LASTEXITCODE -ne 0) {
@@ -86,12 +86,12 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Step 2: Create tables for source mapping files
+# Create tables for source mapping files
 Run-SQL @("-f", "$SQL_DIRECTORY/2a_source-ddl.sql") "Creating tables..."
 
-# Step 3: Load data from S3 Parquet into psych_mapping table
+# Load data from S3 Parquet into psych_mapping_emory table
 Write-Host "Loading data from S3 Parquet..." -ForegroundColor Green
 $awsCredentials = Get-AWSCredentials $AWS_PROFILE
-Run-SQL-WithAWS "$SQL_DIRECTORY/3_load-s3-parquet.sql" "Loading S3 data..." $awsCredentials
+Run-SQL-WithAWS "$SQL_DIRECTORY/3a_copy-parquet-from-s3.sql" "Loading S3 data..." $awsCredentials
 
 # Step 4: Convert raw mappings to source tables
