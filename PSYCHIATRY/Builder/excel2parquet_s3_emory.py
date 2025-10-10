@@ -36,12 +36,12 @@ dtype_mapping = {
     'author_label': 'str',
     'author_orcid_id': 'str',
     'author_specialty': 'str',
-    'author_comments': 'str',
+    'author_comment': 'str',
     'reviewer_label': 'str',
     'reviewer_orcid_id': 'str',
     'reviewer_specialty': 'str',
     'review_date_mm_dd_yy': 'str',  # Will convert to date after reading
-    'reviewer_comments': 'str',
+    'reviewer_comment': 'str',
     'final_decision': 'str',
     'final_comment': 'str'
 }

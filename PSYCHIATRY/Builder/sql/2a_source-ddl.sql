@@ -28,12 +28,12 @@ CREATE TABLE public.psych_mapping_emory
     author_label                VARCHAR(255)         ENCODE lzo,
     author_orcid_id             VARCHAR(255)         ENCODE lzo,
     author_specialty            VARCHAR(255)         ENCODE lzo,
-    author_comments             VARCHAR(255)         ENCODE lzo,
+    author_comment              VARCHAR(255)         ENCODE lzo,
     reviewer_label              VARCHAR(255)         ENCODE lzo,
     reviewer_orcid_id           VARCHAR(255)         ENCODE lzo,
     reviewer_specialty          VARCHAR(255)         ENCODE lzo,
     review_date_mm_dd_yy        DATE                 ENCODE az64,
-    reviewer_comments           VARCHAR(255)         ENCODE lzo,
+    reviewer_comment            VARCHAR(255)         ENCODE lzo,
     final_decision              VARCHAR(255)         ENCODE lzo,
     final_comment               VARCHAR(255)         ENCODE lzo
 );
@@ -56,7 +56,7 @@ CREATE TABLE public.source_to_update
     target_concept_name            VARCHAR(255)         ENCODE lzo,
     target_vocabulary_id           VARCHAR(255)         ENCODE lzo,
     target_domain_id               VARCHAR(255)         ENCODE lzo,
-    decision                       BIGINT               ENCODE az64,
+    decision                       VARCHAR(255)         ENCODE lzo,
     review_date                    DATE                 ENCODE az64,
     reviewer_name                  VARCHAR(255)         ENCODE lzo,
     reviewer_specialty             VARCHAR(255)         ENCODE lzo,

@@ -92,6 +92,7 @@ Run-SQL @("-f", "$SQL_DIRECTORY/2a_source-ddl.sql") "Creating tables..."
 # Load data from S3 Parquet into psych_mapping_emory table
 Write-Host "Loading data from S3 Parquet..." -ForegroundColor Green
 $awsCredentials = Get-AWSCredentials $AWS_PROFILE
-Run-SQL-WithAWS "$SQL_DIRECTORY/3a_copy-parquet-from-s3.sql" "Loading S3 data..." $awsCredentials
+Run-SQL-WithAWS "$SQL_DIRECTORY/3a_load-source-prep.sql" "Loading S3 data..." $awsCredentials
 
-# Step 4: Convert raw mappings to source tables
+# Convert raw mappings to source tables
+Run-SQL @("-f", "$SQL_DIRECTORY/3b_load-source.sql") "Loading raw mappings into source tables..."
