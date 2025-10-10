@@ -15,7 +15,7 @@ s3_parquet_path = "s3://winship-cars/joan/CustomConcepts_Emory.parquet"
 # Define explicit data types for consistent Parquet schema
 dtype_mapping = {
     'source_concept_id': 'int64',
-    'source_code': 'str',
+    'source_concept_code': 'str',
     'source_vocabulary_id': 'str',
     'source_domain': 'str',
     'source_description': 'str',
