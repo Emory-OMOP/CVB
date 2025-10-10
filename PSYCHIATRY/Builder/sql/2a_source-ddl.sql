@@ -1,10 +1,10 @@
-DROP TABLE if EXISTS public.psych_mapping;
+DROP TABLE if EXISTS public.psych_mapping_emory;
 DROP TABLE if EXISTS public.source_to_update;
 DROP TABLE if EXISTS public.vocab_logger;
 DROP TABLE if EXISTS public.mapping_exceptions;
 DROP TABLE if EXISTS public.review_ids;
 
-CREATE TABLE public.psych_mapping
+CREATE TABLE public.psych_mapping_emory
 (
     source_concept_id       BIGINT               ENCODE az64,
     source_code                 VARCHAR(255)         ENCODE lzo,

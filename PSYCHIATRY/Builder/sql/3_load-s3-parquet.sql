@@ -8,10 +8,10 @@
 --
 
 -- Clear existing data to avoid duplicates
-TRUNCATE TABLE public.psych_mapping;
+TRUNCATE TABLE public.psych_mapping_emory;
 
 -- Load data from S3 Parquet file
-COPY public.psych_mapping 
+COPY public.psych_mapping_emory 
 FROM 's3://winship-cars/joan/CustomConcepts_Emory.parquet'
 CREDENTIALS 'aws_access_key_id={ACCESS_KEY};aws_secret_access_key={SECRET_KEY};token={SESSION_TOKEN}'
 FORMAT AS PARQUET;
