@@ -1,5 +1,5 @@
 -- =============================================================================
--- Load Parquet data from S3 into Redshift psych_mapping table
+-- Load Parquet data from S3 into Redshift psych_mapping_emory table
 -- =============================================================================
 -- 
 -- Source: s3://winship-cars/joan/CustomConcepts_Emory.parquet

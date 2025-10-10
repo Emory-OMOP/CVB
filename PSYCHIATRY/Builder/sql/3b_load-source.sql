@@ -1,5 +1,5 @@
 
--- 3b_parquet_minor_transformation.sql
+-- 3b_load-source.sql
 -- Purpose: Apply minor transformations to the public.psych_mapping_emory table
 
 -- Insert transformed data into source_to_update table
