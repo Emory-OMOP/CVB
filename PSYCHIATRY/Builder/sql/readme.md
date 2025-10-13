@@ -122,8 +122,8 @@ This step converts the raw mapping sheet into a typed, consistent staging shape 
 flowchart LR
 
 %% Tables
-PM[temp.parquet_will_be_renamed]:::table
-STU[temp.parquet_minor_transformation]:::table
+PM[public.psych_mapping_emory]:::table
+STU[public.source_to_update]:::table
 
 %% Constants
 K_CLASS[CONST 'Suppl Concept']:::const
