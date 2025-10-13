@@ -87,7 +87,7 @@ flowchart LR
 
 ### Step 2: source-ddl.sql
 **Purpose:**
-Creates the staging and helper tables used throughout the pipeline: temp.psych_mapping, temp.source_to_update, temp.vocab_logger, and ensures permanent helper tables vocab.mapping_exceptions and vocab.review_ids exist.
+Creates the staging and helper tables used throughout the pipeline: pubilc.psych_mapping_emory, public.source_to_update, public.vocab_logger, and ensures permanent helper tables vocab.mapping_exceptions and vocab.review_ids exist.
 
 **Why it matters:**
 These tables are the workspace and control tables for loading raw mappings, tracking review metadata, logging counts/messages, and handling exception/reviewer lookups. Without them, later steps that load CSVs, transform mappings, and compute deltas have nowhere to land or reference.
@@ -97,9 +97,9 @@ These tables are the workspace and control tables for loading raw mappings, trac
 %% Pure DDL – creates tables. No column-level lineage from Step 1.
 
 flowchart LR
-  T_PM[temp.parquet_will_be_renamed]:::table
-  T_STU[temp.parquet_minor_transformation]:::table
-  T_VL[temp.vocab_logger]:::table
+  T_PM[public.psych_mapping_emory]:::table
+  T_STU[public.source_to_update]:::table
+  T_VL[public.vocab_logger]:::table
   T_ME[vocab.mapping_exceptions]:::table
   T_RI[vocab.review_ids]:::table
 
