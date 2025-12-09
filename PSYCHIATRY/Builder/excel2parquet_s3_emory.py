@@ -4,20 +4,23 @@ import s3fs
 import boto3
 import os
 
-fl_fd = "../Mappings/Emory/"
-fl_name_in = "CustomConcepts_v20250908_final.xlsx"
-wb_name = "final_09112025"
+#fl_fd = "../Mappings/Emory/"
+fl_fd = r"C:\Users\xzhan50\Documents\GitHub\CVB\PSYCHIATRY\Mappings\Emory"
+fl_name_in = "CustomConcepts_v20251209_final.xlsx"
+wb_name = "to_ingest_with_cvb"
 input_path = os.path.join(fl_fd, fl_name_in)
 
 s3_parquet_path = "s3://winship-cars/joan/CustomConcepts_Emory.parquet"
 
 # Step 1: Read Excel file
 # Define explicit data types for consistent Parquet schema
+# Define explicit data types for consistent Parquet schema
 dtype_mapping = {
     'source_concept_id': 'int64',
-    'source_concept_code': 'str',
+    'source_code': 'str',
     'source_vocabulary_id': 'str',
     'source_domain': 'str',
+    'source_concept_class_id': 'str',
     'source_description': 'str',
     'source_description_synonym': 'str',
     'source_code_provenance': 'str',
@@ -25,11 +28,10 @@ dtype_mapping = {
     'predicate_id': 'str',
     'confidence': 'float64',
     'target_concept_id': 'int64',
-    'target_concept_name': 'str',  # Keep as string/varchar
+    'target_concept_name': 'str',
     'target_vocabulary_id': 'str',
     'target_domain_id': 'str',
     'mapping_justification': 'str',
-    'mapping_predicate': 'str',
     'mapping_date_mm_dd_yy': 'str',
     'mapping_tool': 'str',
     'mapping_tool_version': 'str',
@@ -37,13 +39,17 @@ dtype_mapping = {
     'author_orcid_id': 'str',
     'author_specialty': 'str',
     'author_comment': 'str',
+    'author_affiliation': 'str',
     'reviewer_label': 'str',
     'reviewer_orcid_id': 'str',
     'reviewer_specialty': 'str',
-    'review_date_mm_dd_yy': 'str',  # Will convert to date after reading
+    'review_date_mm_dd_yy': 'str',
     'reviewer_comment': 'str',
+    'reviewer_affiliation': 'str',
     'final_decision': 'str',
-    'final_comment': 'str'
+    'final_comment': 'str',
+    'change_required': 'str',
+    'status': 'str'
 }
 
 df = pd.read_excel(
@@ -56,9 +62,9 @@ df = pd.read_excel(
 
 # Convert date columns to proper date format (date only, no time)
 if 'mapping_date_mm_dd_yy' in df.columns:
-    df['mapping_date_mm_dd_yy'] = pd.to_datetime(df['mapping_date_mm_dd_yy'], errors='coerce').dt.date
+    df['mapping_date_mm_dd_yy'] = pd.to_datetime(df['mapping_date_mm_dd_yy'], utc=True, errors='coerce').dt.date
 if 'review_date_mm_dd_yy' in df.columns:
-    df['review_date_mm_dd_yy'] = pd.to_datetime(df['review_date_mm_dd_yy'], errors='coerce').dt.date
+    df['review_date_mm_dd_yy'] = pd.to_datetime(df['review_date_mm_dd_yy'], utc=True, errors='coerce').dt.date
 
 # Fix columns with all null values to ensure proper Parquet schema
 # Fill null values in object columns with empty strings to maintain string schema
