@@ -97,8 +97,8 @@ These tables are the workspace and control tables for loading raw mappings, trac
 %% Pure DDL – creates tables. No column-level lineage from Step 1.
 
 flowchart LR
-  T_PM[public.psych_mapping_emory]:::table
-  T_STU[public.source_to_update]:::table
+  T_PM[public.parquet_will_be_renamed]:::table
+  T_STU[public.parquet_minor_transformation]:::table
   T_VL[public.vocab_logger]:::table
   T_ME[vocab.mapping_exceptions]:::table
   T_RI[vocab.review_ids]:::table
