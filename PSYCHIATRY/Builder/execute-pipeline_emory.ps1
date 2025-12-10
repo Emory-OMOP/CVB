@@ -5,7 +5,8 @@
 # CONFIGURATION VARIABLES and DATABASE CONNECTION
 # =============================================================================
 # step 1.1: Python script
-$PYTHON_SCRIPT = "excel2parquet_s3_emory.py"
+#$PYTHON_SCRIPT = "excel2parquet_s3_emory.py"
+$PYTHON_SCRIPT = "C:\Users\xzhan50\Documents\GitHub\CVB\PSYCHIATRY\Builder\excel2parquet_s3_emory.py"
 
 # step 1.2: File paths for database and cloud service connection files
 $SQL_DIRECTORY = "./sql"
@@ -65,6 +66,8 @@ function Run-SQL-WithAWS($sqlFile, $description, $awsCredentials) {
     # Execute the SQL
     $env:PGPASSWORD = $credentials['password']
     $env:PGCLIENTENCODING = "UTF8"
+    # need to revisit this code, why i use it? -- 11/25/2025
+    # line #70 change it to parameter -- 11/25/2025
     $sqlContent | & "C:\Program Files\PostgreSQL\17\bin\psql.exe" -h $credentials['host'] -p $credentials['port'] -d $credentials['database'] -U $credentials['user'] --set=sslmode=require
 }
 
