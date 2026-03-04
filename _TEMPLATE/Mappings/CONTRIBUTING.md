@@ -25,7 +25,8 @@ Emory reviews and incorporates mappings into the vocabulary build pipeline.
 | `source_description` | Yes | Human-readable name (max 255 chars) |
 | `source_description_synonym` | No | Alternative name / abbreviation |
 | `relationship_id` | No | OMOP relationship (e.g., `Maps to`) |
-| `predicate_id` | Yes | SSSOM predicate: `skos:exactMatch`, `skos:broadMatch`, `skos:narrowMatch`, `skos:relatedMatch`, `skos:noMatch` |
+| `predicate_id` | Yes | Predicate: `exactMatch`, `broadMatch`, `narrowMatch`, `noMatch` (or OHDSI: `eq`, `up`, `down`). Legacy `skos:` prefixed forms accepted. |
+| `mapping_tool` | No | OHDSI mapping tool taxonomy: `MM_C`, `MM_U`, `AM-lib_C`, `AM-lib_U`, `AM-tool_C`, `AM-tool_U` |
 | `confidence` | Yes | 0.0 to 1.0 |
 | `target_concept_id` | Yes | OMOP concept_id of the target (0 if no match) |
 | `target_concept_name` | No | Name of the target concept |
@@ -38,15 +39,39 @@ Emory reviews and incorporates mappings into the vocabulary build pipeline.
 | `reviewer_specialty` | No | Clinical specialty of reviewer |
 | `status` | No | Mapping status (e.g., `approved`, `pending`) |
 
-## Predicate Reference (SSSOM)
+## Workspace Columns (Column 22+)
 
-| Predicate | Use when... |
+Columns 1–21 (`source_concept_code` through `status`) are **pipeline columns** — they are loaded into the database during vocabulary builds.
+
+**Column 22 and beyond are workspace columns.** The pipeline automatically strips these before loading. Use them freely for:
+
+- Usage frequency / volume metrics
+- Prioritization notes
+- Template/context information
+- Coordinator assignments or comments
+- Any other operational data that aids the mapping workflow
+
+Workspace columns are preserved in the CSV and visible in the coverage dashboard, but never enter the vocabulary database.
+
+## Predicate Reference
+
+Predicates align with the OHDSI Vocabulary WG standard. Legacy `skos:` prefixed forms are accepted and normalized automatically.
+
+### Relationship predicates (recorded in `concept_relationship_metadata`)
+
+| Predicate | OHDSI code | Use when... |
+|-----------|------------|-------------|
+| `exactMatch` | `eq` | Source concept maps exactly to an existing OMOP concept |
+| `broadMatch` | `up` | Source is more specific than target (source "Is a" target) |
+| `narrowMatch` | `down` | Source is broader than target (target "Is a" source) |
+
+### Pipeline directives (not relationship predicates)
+
+| Directive | Use when... |
 |-----------|-------------|
-| `skos:exactMatch` | Source concept maps exactly to an existing OMOP concept |
-| `skos:broadMatch` | Source is more specific than target (source "Is a" target) |
-| `skos:narrowMatch` | Source is broader than target (target "Is a" source) |
-| `skos:relatedMatch` | Source is related but not hierarchically (associated finding/procedure) |
-| `skos:noMatch` | No existing OMOP concept; a new standard custom concept is needed |
+| `noMatch` | No existing OMOP concept; a new standard custom concept will be created (no mapping relationship is recorded) |
+
+> **Note:** `relatedMatch` is no longer accepted. If you need to express associated concepts, use domain-specific OMOP relationships directly.
 
 ## Validation Checklist
 

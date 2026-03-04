@@ -1,0 +1,95 @@
+-- EDIT THIS FILE: Transform raw mapping CSV data into temp.source_to_update.
+--
+-- This query maps your vocabulary's CSV columns to the normalized
+-- source_to_update schema that the shared pipeline SQL expects.
+--
+-- Adjust column names, type casts, and defaults to match your mapping format.
+
+WITH all_mappings AS (
+    SELECT source_concept_code,
+           source_concept_id,
+           source_vocabulary_id,
+           COALESCE(target_domain_id, 'Metadata')  AS source_domain_id,
+           COALESCE(source_concept_class_id, 'Suppl Concept') AS source_concept_class_id,
+           source_description,
+           source_description_synonym,
+           CURRENT_DATE                             AS valid_start_date,
+           relationship_id,
+           predicate_id,
+           confidence,
+           target_concept_id,
+           NULL                                     AS target_concept_code,
+           target_concept_name,
+           target_vocabulary_id,
+           target_domain_id,
+           NULL::int                                AS decision,
+           review_date::date                        AS review_date,
+           reviewer_name,
+           reviewer_specialty,
+           NULL                                     AS reviewer_comment,
+           NULL                                     AS orcid_id,
+           NULL                                     AS reviewer_affiliation_name,
+           status,
+           NULL                                     AS author_comment,
+           NULL                                     AS change_required
+    FROM temp.mapping
+)
+INSERT INTO temp.source_to_update (
+    source_concept_code,
+    source_concept_id,
+    source_vocabulary_id,
+    source_domain_id,
+    source_concept_class_id,
+    source_description,
+    source_description_synonym,
+    valid_start,
+    relationship_id,
+    predicate_id,
+    confidence,
+    target_concept_id,
+    target_concept_code,
+    target_concept_name,
+    target_vocabulary_id,
+    target_domain_id,
+    decision,
+    review_date,
+    reviewer_name,
+    reviewer_specialty,
+    reviewer_comment,
+    orcid_id,
+    reviewer_affiliation_name,
+    status,
+    author_comment,
+    change_required
+)
+SELECT TRIM(LEFT(source_concept_code, 50)),
+       NULL AS source_concept_id,
+       source_vocabulary_id,
+       source_domain_id,
+       source_concept_class_id,
+       LEFT(source_description, 255),
+       LEFT(source_description_synonym, 255),
+       valid_start_date,
+       relationship_id,
+       predicate_id,
+       confidence::FLOAT,
+       target_concept_id::integer,
+       target_concept_code,
+       target_concept_name,
+       target_vocabulary_id,
+       INITCAP(target_domain_id),
+       decision,
+       review_date,
+       reviewer_name,
+       reviewer_specialty,
+       reviewer_comment,
+       orcid_id,
+       reviewer_affiliation_name,
+       status,
+       author_comment,
+       change_required
+FROM all_mappings
+WHERE NULLIF(TRIM(LEFT(source_concept_code, 50)), '') IS NOT NULL
+  AND NULLIF(TRIM(LEFT(source_description, 50)), '') IS NOT NULL;
+
+SELECT COUNT(*) FROM temp.source_to_update;

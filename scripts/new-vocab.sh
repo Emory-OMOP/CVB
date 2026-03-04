@@ -10,16 +10,14 @@ set -euo pipefail
 # Example:
 #   ./scripts/new-vocab.sh CARDIOLOGY 2082
 #
-# ID_BASE determines the concept ID ranges:
-#   Standard IDs:      ID_BASE * 1_000_000       to  ID_BASE * 1_000_000 + 500_000
-#   Non-standard IDs:  ID_BASE * 1_000_000 - 500_000  to  ID_BASE * 1_000_000
+# ID_BASE determines the concept ID ranges (all within [ID_BASE*1M, (ID_BASE+1)*1M)):
+#   Standard IDs:      ID_BASE * 1_000_000            to  ID_BASE * 1_000_000 + 500_000
+#   Non-standard IDs:  ID_BASE * 1_000_000 + 500_000  to  (ID_BASE + 1) * 1_000_000
 #   Vocab concept ID:  ID_BASE * 1_000_000 + 499_999
 #   Sequence start:    ID_BASE * 1_000_000 + 499_885
 #
-# Existing ID_BASE allocations (do not reuse):
-#   2062 = MIMIC
-#   2072 = PSYCHIATRY
-#   2076 = GIS
+# Allocations are tracked in id-registry.csv at the repo root.
+# This script checks for ID_BASE collisions and range overlaps before scaffolding.
 # -------------------------------------------------------------------
 
 if [[ $# -lt 2 ]]; then
@@ -28,7 +26,7 @@ if [[ $# -lt 2 ]]; then
     echo "  VOCAB_NAME  Name for the vocabulary (e.g., CARDIOLOGY)"
     echo "  ID_BASE     Numeric base for ID ranges (e.g., 2082)"
     echo ""
-    echo "Existing allocations: 2062 (MIMIC), 2072 (PSYCHIATRY), 2076 (GIS)"
+    echo "Existing allocations are tracked in id-registry.csv"
     exit 1
 fi
 
@@ -39,6 +37,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 TEMPLATE_DIR="${REPO_DIR}/_TEMPLATE"
 TARGET_DIR="${REPO_DIR}/${VOCAB_NAME}"
+REGISTRY="${REPO_DIR}/id-registry.csv"
 
 # Validate
 if [[ -d "${TARGET_DIR}" ]]; then
@@ -52,15 +51,47 @@ if ! [[ "${ID_BASE}" =~ ^[0-9]+$ ]]; then
 fi
 
 # Compute ID ranges
+# All IDs fit within [ID_BASE * 1M, (ID_BASE + 1) * 1M):
+#   Standard:     ID_BASE * 1M       .. ID_BASE * 1M + 500K
+#   Non-standard: ID_BASE * 1M + 500K .. (ID_BASE + 1) * 1M
 ID_RANGE_MIN=$(( ID_BASE * 1000000 ))
 ID_RANGE_MAX=$(( ID_RANGE_MIN + 500000 ))
 ID_RANGE_START=$(( ID_RANGE_MAX - 115 ))
-NS_RANGE_MIN=$(( ID_RANGE_MIN - 500000 ))
-NS_RANGE_MAX="${ID_RANGE_MIN}"
+NS_RANGE_MIN="${ID_RANGE_MAX}"
+NS_RANGE_MAX=$(( ID_RANGE_MIN + 1000000 ))
 VOCAB_CONCEPT_ID=$(( ID_RANGE_MAX - 1 ))
 
 VOCAB_LOWER=$(echo "${VOCAB_NAME}" | tr '[:upper:]' '[:lower:]')
 DB_NAME="${VOCAB_LOWER}_vocabulary"
+
+# Check id-registry.csv for collisions
+if [[ -f "${REGISTRY}" ]]; then
+    # Skip header line, check each existing allocation
+    while IFS=, read -r reg_name reg_base reg_min reg_max reg_ns_min reg_ns_max _owner _date; do
+        [[ "${reg_name}" == "vocab_name" ]] && continue  # skip header
+        [[ "${reg_name}" == \#* ]] && continue           # skip comments
+        [[ -z "${reg_base}" ]] && continue
+
+        # Exact ID_BASE collision
+        if [[ "${ID_BASE}" -eq "${reg_base}" ]]; then
+            echo "ERROR: ID_BASE ${ID_BASE} is already allocated to ${reg_name}."
+            echo "See id-registry.csv for existing allocations."
+            exit 1
+        fi
+
+        # Vocab name collision
+        if [[ "${VOCAB_NAME}" == "${reg_name}" ]]; then
+            echo "ERROR: Vocabulary name ${VOCAB_NAME} already exists in id-registry.csv."
+            exit 1
+        fi
+
+        # Range overlap: new [NS_RANGE_MIN, ID_RANGE_MAX] vs existing [reg_ns_min, reg_max]
+        if [[ "${NS_RANGE_MIN}" -lt "${reg_max}" ]] && [[ "${ID_RANGE_MAX}" -gt "${reg_ns_min}" ]]; then
+            echo "ERROR: ID range [${NS_RANGE_MIN}-${ID_RANGE_MAX}] overlaps with ${reg_name} [${reg_ns_min}-${reg_max}]."
+            exit 1
+        fi
+    done < "${REGISTRY}"
+fi
 
 echo "=== Scaffolding ${VOCAB_NAME} ==="
 echo ""
@@ -126,6 +157,12 @@ else
     echo "    docker compose up -d db"
     echo "    docker compose exec db createdb -U postgres ${DB_NAME}"
     echo "    docker compose exec db psql -U postgres -d ${DB_NAME} -f /docker-entrypoint-initdb.d/01-create-vocab-schema.sql"
+fi
+
+# Update id-registry.csv
+if [[ -f "${REGISTRY}" ]]; then
+    echo "${VOCAB_NAME},${ID_BASE},${ID_RANGE_MIN},${ID_RANGE_MAX},${NS_RANGE_MIN},${NS_RANGE_MAX},,$(date +%Y-%m-%d)" >> "${REGISTRY}"
+    echo "  Updated id-registry.csv"
 fi
 
 echo ""

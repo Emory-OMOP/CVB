@@ -9,6 +9,7 @@ DROP TABLE IF EXISTS temp.vocabulary_delta;
 DROP TABLE IF EXISTS temp.concept_class_delta;
 DROP TABLE IF EXISTS temp.source_to_concept_map_delta;
 DROP TABLE IF EXISTS temp.mapping_metadata_delta;
+DROP TABLE IF EXISTS temp.concept_relationship_metadata_delta;
 
 
 CREATE TABLE temp.concept_delta AS (SELECT * FROM vocab.concept WHERE vocabulary_id IN (:'vocab_id') ORDER BY concept_id);
@@ -30,3 +31,5 @@ CREATE TABLE temp.concept_class_delta AS (SELECT * FROM vocab.concept_class WHER
 CREATE TABLE temp.source_to_concept_map_delta AS (SELECT * FROM vocab.source_to_concept_map ORDER BY source_concept_id, target_concept_id);
 
 CREATE TABLE temp.mapping_metadata_delta AS (SELECT * FROM vocab.mapping_metadata ORDER BY mapping_concept_code);
+
+CREATE TABLE temp.concept_relationship_metadata_delta AS (SELECT * FROM vocab.concept_relationship_metadata ORDER BY concept_id_1, concept_id_2, relationship_id);

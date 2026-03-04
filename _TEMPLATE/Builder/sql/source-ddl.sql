@@ -29,6 +29,7 @@ CREATE TABLE temp.mapping
     target_vocabulary_id       TEXT,
     target_domain_id           TEXT,
     mapping_justification      TEXT,
+    mapping_tool               TEXT,
     author_label               TEXT,
     review_date                TEXT,
     reviewer_name              TEXT,

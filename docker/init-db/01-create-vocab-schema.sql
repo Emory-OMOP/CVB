@@ -107,7 +107,7 @@ CREATE TABLE IF NOT EXISTS vocab.source_to_concept_map
     invalid_reason          VARCHAR(1)
 );
 
--- mapping_metadata
+-- mapping_metadata (DEPRECATED: retained for backward compatibility during transition)
 CREATE TABLE IF NOT EXISTS vocab.mapping_metadata
 (
     mapping_concept_id    INTEGER,
@@ -122,6 +122,25 @@ CREATE TABLE IF NOT EXISTS vocab.mapping_metadata
     reviewer_label        VARCHAR(255),
     mapping_tool          VARCHAR(255),
     mapping_tool_version  VARCHAR(255)
+);
+
+-- concept_relationship_metadata (OHDSI Vocabulary WG aligned)
+-- See: https://github.com/OHDSI/Vocabulary-v5.0/wiki/Vocabulary-Metadata
+CREATE TABLE IF NOT EXISTS vocab.concept_relationship_metadata
+(
+    concept_id_1                INTEGER      NOT NULL,
+    concept_id_2                INTEGER      NOT NULL,
+    relationship_id             VARCHAR(20)  NOT NULL,
+    relationship_predicate_id   VARCHAR(20),
+    relationship_group          INTEGER,
+    mapping_source              VARCHAR(50),
+    confidence                  FLOAT,
+    mapping_tool                VARCHAR(50),
+    mapper                      VARCHAR(50),
+    reviewer                    VARCHAR(50),
+    CONSTRAINT chk_crm_predicate CHECK (relationship_predicate_id IN ('eq', 'up', 'down', 'exactMatch', 'broadMatch', 'narrowMatch')),
+    CONSTRAINT chk_crm_confidence CHECK (confidence >= 0 AND confidence <= 1),
+    UNIQUE (concept_id_1, concept_id_2, relationship_id)
 );
 
 -- mapping_exceptions

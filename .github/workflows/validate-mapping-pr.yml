@@ -1,0 +1,24 @@
+name: Validate Mapping PR
+on:
+  pull_request:
+    paths: ['*/Mappings/*.csv']
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Find changed CSVs
+        id: changed
+        run: |
+          FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- '*/Mappings/*.csv')
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+      - name: Validate
+        if: steps.changed.outputs.files != ''
+        env:
+          PYTHONPATH: scripts
+        run: python scripts/validate-mapping-csv.py ${{ steps.changed.outputs.files }}

@@ -564,6 +564,70 @@ WHERE CONCAT(source_concept_code, '|| - ||', source_vocabulary_id, '|| - ||', co
 
 
 
+/*
+ ---------  ----------  ----------  ----------  ----------
+ CONCEPT_RELATIONSHIP_METADATA (OHDSI-aligned)
+ Populate for all relationship predicates (excludes noMatch rows which have no relationship)
+ ----------  ----------  ----------  ----------  ----------
+ */
+
+DROP TABLE IF EXISTS vocab.concept_relationship_metadata_staging;
+
+CREATE TABLE vocab.concept_relationship_metadata_staging
+(
+    concept_id_1              INTEGER      NOT NULL,
+    concept_id_2              INTEGER      NOT NULL,
+    relationship_id           VARCHAR(20)  NOT NULL,
+    relationship_predicate_id VARCHAR(20),
+    relationship_group        INTEGER,
+    mapping_source            VARCHAR(50),
+    confidence                FLOAT,
+    mapping_tool              VARCHAR(50),
+    mapper                    VARCHAR(50),
+    reviewer                  VARCHAR(50)
+);
+
+INSERT INTO vocab.concept_relationship_metadata_staging
+SELECT
+    b.concept_id                                    AS concept_id_1,
+    stu.target_concept_id                           AS concept_id_2,
+    'Maps to'                                       AS relationship_id,
+    CASE
+        WHEN trim(lower(stu.predicate_id)) IN ('skos:exactmatch', 'exactmatch', 'eq')   THEN 'exactMatch'
+        WHEN trim(lower(stu.predicate_id)) IN ('skos:broadmatch', 'broadmatch', 'up')   THEN 'broadMatch'
+        WHEN trim(lower(stu.predicate_id)) IN ('skos:narrowmatch', 'narrowmatch', 'down') THEN 'narrowMatch'
+        ELSE trim(stu.predicate_id)
+    END                                             AS relationship_predicate_id,
+    NULL                                            AS relationship_group,
+    CONCAT('CVB:', stu.source_vocabulary_id)        AS mapping_source,
+    COALESCE(stu.confidence, 0)                     AS confidence,
+    'MM_C'                                          AS mapping_tool,
+    COALESCE(stu.author_label, 'Unknown')           AS mapper,
+    stu.reviewer_name                               AS reviewer
+FROM temp.source_to_update stu
+    INNER JOIN vocab.concept_ns_staging b
+        ON UPPER(TRIM(stu.source_concept_code)) = UPPER(TRIM(b.concept_code))
+WHERE trim(lower(stu.predicate_id)) NOT IN ('skos:nomatch', 'nomatch')
+  AND stu.target_concept_id IS NOT NULL
+  AND stu.target_concept_id != 0;
+
+-- Deduplicate on composite key
+DELETE FROM vocab.concept_relationship_metadata_staging a USING (
+    SELECT MIN(ctid) as ctid, concept_id_1, concept_id_2, relationship_id
+    FROM vocab.concept_relationship_metadata_staging
+    GROUP BY concept_id_1, concept_id_2, relationship_id
+    HAVING COUNT(*) > 1
+) b
+WHERE a.concept_id_1 = b.concept_id_1
+  AND a.concept_id_2 = b.concept_id_2
+  AND a.relationship_id = b.relationship_id
+  AND a.ctid <> b.ctid;
+
+INSERT INTO temp.vocab_logger(log_desc, log_count)
+SELECT 'Number of Concept Relationship Metadata Entries to Create:',
+       (SELECT count(*) FROM vocab.concept_relationship_metadata_staging);
+
+
 INSERT INTO temp.vocab_logger(log_desc, log_count)
 SELECT 'Smallest Non-Standard Concept Id Assigned in Update:',
        (SELECT COALESCE(min(concept_id)::text, 'NONE') FROM vocab.concept_ns_staging);

@@ -1,0 +1,40 @@
+name: Release Vocabulary
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (default: YYYY.MM.DD)'
+        required: false
+  push:
+    tags:
+      - 'v*'
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Determine version
+        id: version
+        run: |
+          if [[ -n "${{ github.event.inputs.version }}" ]]; then
+            echo "version=${{ github.event.inputs.version }}" >> "$GITHUB_OUTPUT"
+          elif [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=$(date +%Y.%m.%d)" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Package releases
+        run: |
+          chmod +x scripts/package-release.sh
+          ./scripts/package-release.sh "${{ steps.version.outputs.version }}"
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          gh release create "v${VERSION}" \
+            --title "CVB Vocabulary Release v${VERSION}" \
+            --generate-notes \
+            release/*.zip

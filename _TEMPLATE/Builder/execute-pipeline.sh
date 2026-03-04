@@ -56,13 +56,20 @@ ${PSQL} -f "${LOCAL_SQL}/source-ddl.sql"
 
 # ------------------------------------------------------------------
 # STEP 2: Load mapping CSVs into staging tables
+# Columns 1-21 are pipeline columns; 22+ are workspace columns
+# (notes, frequency, etc.) that are stripped before loading.
 # ------------------------------------------------------------------
 echo "[2/12] Loading mapping CSVs..."
+PIPELINE_COLS=21
 IFS=' ' read -ra FILES <<< "${MAPPING_FILES}"
 IFS=' ' read -ra TABLES <<< "${STAGING_TABLES}"
 for i in "${!FILES[@]}"; do
+    SRC="${MAP_DIR}/${FILES[$i]}"
+    TRIMMED="/tmp/_cvb_trimmed_${FILES[$i]}"
     echo "  Loading ${FILES[$i]} -> ${TABLES[$i]}"
-    ${PSQL} -c "\\copy ${TABLES[$i]} FROM '${MAP_DIR}/${FILES[$i]}' CSV HEADER"
+    python3 "${REPO_DIR}/scripts/trim-csv-columns.py" "${SRC}" "${TRIMMED}" "${PIPELINE_COLS}"
+    ${PSQL} -c "\\copy ${TABLES[$i]} FROM '${TRIMMED}' CSV HEADER"
+    rm -f "${TRIMMED}"
 done
 
 # ------------------------------------------------------------------

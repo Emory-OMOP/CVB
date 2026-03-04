@@ -12,51 +12,24 @@ If OUTPUT is omitted, writes to the same path with .csv extension.
 """
 
 import argparse
+import os
 import sys
 from pathlib import Path
+
+# Allow sibling import when run directly
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from cvb_constants import (
+    REQUIRED_MAPPING_COLUMNS as REQUIRED_COLUMNS,
+    EXPECTED_COLUMNS,
+    normalize_column_name,
+)
 
 try:
     import pandas as pd
 except ImportError:
     print("ERROR: pandas is required. Install with: pip install pandas openpyxl", file=sys.stderr)
     sys.exit(1)
-
-REQUIRED_COLUMNS = {
-    "source_concept_code",
-    "source_vocabulary_id",
-    "source_description",
-    "predicate_id",
-    "confidence",
-    "target_concept_id",
-}
-
-EXPECTED_COLUMNS = [
-    "source_concept_code",
-    "source_concept_id",
-    "source_vocabulary_id",
-    "source_domain",
-    "source_concept_class_id",
-    "source_description",
-    "source_description_synonym",
-    "relationship_id",
-    "predicate_id",
-    "confidence",
-    "target_concept_id",
-    "target_concept_name",
-    "target_vocabulary_id",
-    "target_domain_id",
-    "mapping_justification",
-    "author_label",
-    "review_date",
-    "reviewer_name",
-    "reviewer_specialty",
-    "status",
-]
-
-
-def normalize_column_name(name: str) -> str:
-    """Normalize column names: lowercase, strip, replace spaces with underscores."""
-    return name.strip().lower().replace(" ", "_").replace("-", "_")
 
 
 def convert(input_path: str, output_path: str, sheet_name: str | None = None) -> None:
