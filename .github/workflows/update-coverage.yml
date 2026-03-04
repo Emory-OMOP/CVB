@@ -1,0 +1,53 @@
+name: Update Coverage Data
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '*/Mappings/*.csv'
+      - 'scripts/mapping-coverage.py'
+      - 'scripts/cvb_constants.py'
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # needed for git log dates
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Generate coverage data
+        run: python scripts/mapping-coverage.py --json
+
+      - name: Update COVERAGE.md
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet COVERAGE.md; then
+            echo "No changes to COVERAGE.md"
+          else
+            git add COVERAGE.md
+            git commit -m "Update COVERAGE.md [skip ci]"
+            git push
+          fi
+
+      - name: Upload coverage JSON artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-data
+          path: coverage-data.json
+          retention-days: 30
+
+      - name: Dispatch to MkDocs site
+        if: success()
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.MKDOCS_DISPATCH_TOKEN }}
+          repository: EmoryDataSolutions/emory-omop
+          event-type: coverage-update
+          client-payload: '{"ref": "${{ github.sha }}"}'

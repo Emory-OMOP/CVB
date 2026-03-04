@@ -14,6 +14,7 @@ Requires only Python stdlib. Imports shared constants from cvb_constants.py.
 """
 
 import csv
+import json
 import os
 import subprocess
 import sys
@@ -65,7 +66,11 @@ def analyze_csv(filepath):
     if not rows:
         return {"total": 0, "mapped": 0, "unmapped": 0, "coverage": 0.0,
                 "predicates": {}, "confidence": {},
-                "metadata_completeness": {"mapping_tool": "0/0", "mapper": "0/0", "reviewer": "0/0"},
+                "metadata_completeness": {
+                    "mapping_tool": {"count": 0, "total": 0},
+                    "mapper": {"count": 0, "total": 0},
+                    "reviewer": {"count": 0, "total": 0},
+                },
                 "top_unmapped": []}
 
     total = len(rows)
@@ -76,7 +81,7 @@ def analyze_csv(filepath):
     has_reviewer = 0
     mapped = 0
     unmapped = 0
-    has_frequency = "ws_frequency" in header_set
+    has_frequency = "ws_frequency" in headers
 
     for row in rows:
         pred = (row.get("predicate_id") or "").strip()
@@ -114,9 +119,9 @@ def analyze_csv(filepath):
         }
 
     metadata_completeness = {
-        "mapping_tool": f"{has_tool}/{total} ({has_tool/total*100:.0f}%)" if total else "0/0",
-        "mapper": f"{has_mapper}/{total} ({has_mapper/total*100:.0f}%)" if total else "0/0",
-        "reviewer": f"{has_reviewer}/{total} ({has_reviewer/total*100:.0f}%)" if total else "0/0",
+        "mapping_tool": {"count": has_tool, "total": total},
+        "mapper": {"count": has_mapper, "total": total},
+        "reviewer": {"count": has_reviewer, "total": total},
     }
 
     # Top unmapped items by workspace frequency (if ws_frequency column present)
@@ -167,11 +172,77 @@ def discover_vocabs(repo_dir, filter_names=None):
     return vocabs
 
 
+def build_json(repo_dir, vocabs):
+    """Build a JSON-serializable dict of all coverage data."""
+    generated = subprocess.run(
+        ["date", "+%Y-%m-%d"], capture_output=True, text=True,
+    ).stdout.strip()
+
+    vocab_data = []
+    grand_total = grand_mapped = grand_unmapped = 0
+
+    for vocab in vocabs:
+        mappings_dir = os.path.join(repo_dir, vocab, "Mappings")
+        csv_files = sorted(
+            f for f in os.listdir(mappings_dir) if f.lower().endswith(".csv")
+        )
+
+        files = []
+        v_total = v_mapped = v_unmapped = 0
+
+        for csv_file in csv_files:
+            filepath = os.path.join(mappings_dir, csv_file)
+            stats = analyze_csv(filepath)
+            if stats is None:
+                continue
+
+            v_total += stats["total"]
+            v_mapped += stats["mapped"]
+            v_unmapped += stats["unmapped"]
+
+            files.append({
+                "filename": csv_file,
+                "last_modified": git_last_modified(filepath),
+                **stats,
+            })
+
+        grand_total += v_total
+        grand_mapped += v_mapped
+        grand_unmapped += v_unmapped
+
+        vocab_data.append({
+            "name": vocab,
+            "files": files,
+            "totals": {
+                "total": v_total,
+                "mapped": v_mapped,
+                "unmapped": v_unmapped,
+                "coverage": round(v_mapped / v_total * 100, 1) if v_total else 0.0,
+            },
+        })
+
+    return {
+        "generated": generated,
+        "summary": {
+            "total_vocabs": len(vocabs),
+            "total_rows": grand_total,
+            "total_mapped": grand_mapped,
+            "total_unmapped": grand_unmapped,
+            "overall_coverage": round(grand_mapped / grand_total * 100, 1) if grand_total else 0.0,
+        },
+        "vocabs": vocab_data,
+    }
+
+
 def main():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     repo_dir = os.path.dirname(script_dir)
 
-    filter_names = set(sys.argv[1:]) if len(sys.argv) > 1 else None
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    flags = {a for a in sys.argv[1:] if a.startswith("--")}
+    output_json = "--json" in flags
+
+    filter_names = set(args) if args else None
     vocabs = discover_vocabs(repo_dir, filter_names)
 
     if not vocabs:
@@ -241,9 +312,10 @@ def main():
             lines.append("")
             lines.append("| Field | Coverage |")
             lines.append("|-------|----------|")
-            lines.append(f"| mapping_tool | {mc['mapping_tool']} |")
-            lines.append(f"| mapper | {mc['mapper']} |")
-            lines.append(f"| reviewer | {mc['reviewer']} |")
+            for field in ("mapping_tool", "mapper", "reviewer"):
+                m = mc[field]
+                pct = (m["count"] / m["total"] * 100) if m["total"] else 0
+                lines.append(f"| {field} | {m['count']}/{m['total']} ({pct:.0f}%) |")
             lines.append("")
 
             if stats.get("top_unmapped"):
@@ -263,6 +335,14 @@ def main():
 
     print(f"Coverage report written to: {output_path}")
     print(f"Vocabularies analyzed: {', '.join(vocabs)}")
+
+    # Write JSON if requested
+    if output_json:
+        json_data = build_json(repo_dir, vocabs)
+        json_path = os.path.join(repo_dir, "coverage-data.json")
+        with open(json_path, "w", encoding="utf-8") as f:
+            json.dump(json_data, f, indent=2)
+        print(f"JSON data written to: {json_path}")
 
 
 if __name__ == "__main__":
