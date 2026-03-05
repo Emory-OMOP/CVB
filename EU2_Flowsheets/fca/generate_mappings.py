@@ -153,6 +153,31 @@ ASSESSMENT_CONCEPT_MAP: dict[str, tuple[int, str]] = {
     'fatigue':         (4223659,  'Fatigue'),                          # SNOMED 84229001
     'dizziness':       (4223938,  'Dizziness'),                        # SNOMED 404640003
     'apnea':           (321689,   'Apnea'),                            # SNOMED 1023001
+    # --- Concepts added by clinical reasoning pass ---
+    'range_of_motion': (74392,    'Finding of range of joint movement'), # SNOMED 298180004
+    'sleep_assessment': (4041989, 'Sleep finding'),                     # SNOMED 118190003
+    'muscle_strength': (4097165,  'Grade of muscle power'),             # SNOMED 249948009
+    'allergy_assessment': (1243740, 'Allergy status'),                  # SNOMED 1300212001
+    'bladder_function': (4170255, 'Urinary bladder function'),          # SNOMED 42111002
+    'ventilator_settings': (40488354, 'Continuous positive airway pressure titration'), # SNOMED 446573003
+    'perceived_exertion': (37311860, 'Borg Rating of Perceived Exertion'), # SNOMED 789163003
+    'continence':      (4235720,  'Urinary continence status'),         # SNOMED 406218000
+    'spasticity':      (4329728,  'Spasticity'),                        # SNOMED 221360009
+    'appetite':        (4269437,  'Appetite observable'),                # SNOMED 364663004
+    'swelling':        (4275722,  'Swelling'),                          # SNOMED 65124004
+    'restraint':       (4302381,  'Physical restraint'),                 # SNOMED 386423001
+    'suction':         (4047449,  'Airway suction technique'),           # SNOMED 230040009
+    'vomiting':        (4096715,  'Vomiting symptom'),                   # SNOMED 249497008
+    'enteral_feeding': (4042005,  'Enteral feeding'),                    # SNOMED 229912004
+    'cranial_nerve':   (4024014,  'Cranial nerve finding'),              # SNOMED 106150003
+    'speech_disorder': (4237854,  'Speech observable'),                  # SNOMED 363918005
+    'diaphoresis':     (4188566,  'Sweating'),                           # SNOMED 415690000
+    'rigidity':        (4050941,  'Muscle rigidity'),                    # SNOMED 16046003
+    'pruritus':        (4169287,  'Itching of skin'),                    # SNOMED 418363000
+    'fim_score':       (4159704,  'Functional independence measure'),    # SNOMED 273469003
+    'agitation':       (4187507,  'Psychomotor agitation'),              # SNOMED 47295007
+    'skin_finding':    (141960,   'Skin finding'),                       # SNOMED 106076001
+    'bowel_movement':  (4024576,  'Large bowel function'),               # SNOMED 106084002
 }
 
 
