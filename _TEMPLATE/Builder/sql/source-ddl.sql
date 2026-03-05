@@ -65,7 +65,8 @@ CREATE TABLE temp.source_to_update
     reviewer_affiliation_name  TEXT,
     status                     TEXT,
     author_comment             TEXT,
-    change_required            TEXT
+    change_required            TEXT,
+    author_label               TEXT
 );
 
 CREATE TABLE temp.vocab_logger

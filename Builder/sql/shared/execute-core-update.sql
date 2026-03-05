@@ -206,9 +206,11 @@ WHERE vocab.source_to_concept_map.source_concept_id = foo.source_concept_id
 /*
 ---------  ----------  ----------  ----------  ----------
 -- USE MAPPING UPDATE TO UPDATE CONCEPT_RELATIONSHIP
+-- Uses relationship_id from mapping_to_update (populated by
+-- deprecate-and-update.sql from staging, defaults to 'Maps to').
 ---------  ----------  ----------  ----------  ----------
  */
--- Maps to
+-- Forward direction
 INSERT INTO vocab.concept_relationship(concept_id_1,
                                        concept_id_2,
                                        relationship_id,
@@ -217,13 +219,13 @@ INSERT INTO vocab.concept_relationship(concept_id_1,
                                        invalid_reason)
 SELECT source_concept_id,
        to_update,
-       'Maps to',
+       COALESCE(relationship_id, 'Maps to'),
        now()::date,
        '2099-12-31'::date,
        NULL
 FROM temp.mapping_to_update;
 
--- Mapped from
+-- Reverse direction
 INSERT INTO vocab.concept_relationship(concept_id_1,
                                        concept_id_2,
                                        relationship_id,
@@ -232,7 +234,22 @@ INSERT INTO vocab.concept_relationship(concept_id_1,
                                        invalid_reason)
 SELECT to_update,
        source_concept_id,
-       'Mapped from',
+       CASE COALESCE(relationship_id, 'Maps to')
+           WHEN 'Maps to'          THEN 'Mapped from'
+           WHEN 'Is a'             THEN 'Subsumes'
+           WHEN 'Subsumes'         THEN 'Is a'
+           WHEN 'Has asso proc'    THEN 'Asso proc of'
+           WHEN 'Asso proc of'    THEN 'Has asso proc'
+           WHEN 'Has asso finding' THEN 'Asso finding of'
+           WHEN 'Asso finding of' THEN 'Has asso finding'
+           WHEN 'Has measurement'  THEN 'Measurement of'
+           WHEN 'Measurement of'  THEN 'Has measurement'
+           WHEN 'Has relat context' THEN 'Relat context of'
+           WHEN 'Relat context of' THEN 'Has relat context'
+           WHEN 'Has finding site' THEN 'Finding site of'
+           WHEN 'Finding site of' THEN 'Has finding site'
+           ELSE 'Mapped from'
+       END,
        now()::date,
        '2099-12-31'::date,
        NULL
@@ -296,6 +313,9 @@ FROM vocab.concept_syn_staging;
 
 INSERT INTO vocab.mapping_metadata
 SELECT * FROM vocab.mapping_metadata_staging;
+
+INSERT INTO vocab.concept_relationship_metadata
+SELECT * FROM vocab.concept_relationship_metadata_staging;
 
 UPDATE vocab.vocabulary
 SET vocabulary_version = now()::date

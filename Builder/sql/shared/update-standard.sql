@@ -69,6 +69,7 @@ CREATE TABLE temp.concept_rel_s_raw AS (SELECT *
                                         FROM vocab.concept_rel_s_staging);
 
 
+-- Self-referencing Maps to (standard OMOP pattern: S concept maps to itself)
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
                                          concept_id_2,
                                          relationship_id,
@@ -100,6 +101,75 @@ SELECT concept_id,
 FROM vocab.concept_s_staging;
 
 
+/*
+ ---------  ----------  ----------  ----------  ----------
+ EXPLICIT RELATIONSHIP_ID PATH
+ When source_to_update rows have an explicit relationship_id,
+ use it directly instead of deriving from predicate_id + domain.
+ ---------  ----------  ----------  ----------  ----------
+ */
+INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
+                                          concept_id_2,
+                                          relationship_id,
+                                          valid_start_date,
+                                          valid_end_date,
+                                          invalid_reason)
+SELECT b.concept_id,
+       a.target_concept_id,
+       a.relationship_id,
+       now()::date,
+       '2099-12-31'::date,
+       NULL
+FROM temp.concept_check_ns_raw a
+    INNER JOIN vocab.concept_s_staging b
+    ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
+WHERE NULLIF(TRIM(a.relationship_id), '') IS NOT NULL
+  AND a.target_concept_id IS NOT NULL
+  AND a.target_concept_id != 0;
+
+-- Reverse direction for explicit relationships
+INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
+                                          concept_id_2,
+                                          relationship_id,
+                                          valid_start_date,
+                                          valid_end_date,
+                                          invalid_reason)
+SELECT a.target_concept_id,
+       b.concept_id,
+       CASE a.relationship_id
+           WHEN 'Maps to'          THEN 'Mapped from'
+           WHEN 'Is a'             THEN 'Subsumes'
+           WHEN 'Subsumes'         THEN 'Is a'
+           WHEN 'Has asso proc'    THEN 'Asso proc of'
+           WHEN 'Asso proc of'    THEN 'Has asso proc'
+           WHEN 'Has asso finding' THEN 'Asso finding of'
+           WHEN 'Asso finding of' THEN 'Has asso finding'
+           WHEN 'Has measurement'  THEN 'Measurement of'
+           WHEN 'Measurement of'  THEN 'Has measurement'
+           WHEN 'Has relat context' THEN 'Relat context of'
+           WHEN 'Relat context of' THEN 'Has relat context'
+           WHEN 'Has finding site' THEN 'Finding site of'
+           WHEN 'Finding site of' THEN 'Has finding site'
+           ELSE 'Mapped from'
+       END,
+       now()::date,
+       '2099-12-31'::date,
+       NULL
+FROM temp.concept_check_ns_raw a
+    INNER JOIN vocab.concept_s_staging b
+    ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
+WHERE NULLIF(TRIM(a.relationship_id), '') IS NOT NULL
+  AND a.target_concept_id IS NOT NULL
+  AND a.target_concept_id != 0;
+
+/*
+ ---------  ----------  ----------  ----------  ----------
+ DERIVED RELATIONSHIP PATH (legacy — when relationship_id is NULL)
+ Derives relationship_id from predicate_id + target_domain_id.
+ ---------  ----------  ----------  ----------  ----------
+ */
+
+-- broadMatch → Is a / Subsumes
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
                                           concept_id_2,
                                           relationship_id,
@@ -115,7 +185,8 @@ SELECT b.concept_id,
 FROM temp.concept_check_ns_raw a
     INNER JOIN vocab.concept_s_staging b
     ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
-WHERE trim(lower(a.predicate_id)) = 'skos:broadmatch';
+WHERE REPLACE(trim(lower(a.predicate_id)), 'skos:', '') = 'broadmatch'
+  AND NULLIF(TRIM(a.relationship_id), '') IS NULL;
 
 
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
@@ -133,8 +204,10 @@ SELECT a.target_concept_id,
 FROM temp.concept_check_ns_raw a
     INNER JOIN vocab.concept_s_staging b
     ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
-WHERE trim(lower(a.predicate_id)) = 'skos:broadmatch';
+WHERE REPLACE(trim(lower(a.predicate_id)), 'skos:', '') = 'broadmatch'
+  AND NULLIF(TRIM(a.relationship_id), '') IS NULL;
 
+-- narrowMatch → Subsumes / Is a
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
                                           concept_id_2,
                                           relationship_id,
@@ -150,7 +223,8 @@ SELECT b.concept_id,
 FROM temp.concept_check_ns_raw a
     INNER JOIN vocab.concept_s_staging b
     ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
-WHERE trim(lower(a.predicate_id)) = 'skos:narrowmatch';
+WHERE REPLACE(trim(lower(a.predicate_id)), 'skos:', '') = 'narrowmatch'
+  AND NULLIF(TRIM(a.relationship_id), '') IS NULL;
 
 
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
@@ -168,8 +242,10 @@ SELECT a.target_concept_id,
 FROM temp.concept_check_ns_raw a
     INNER JOIN vocab.concept_s_staging b
     ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
-WHERE trim(lower(a.predicate_id)) = 'skos:narrowmatch';
+WHERE REPLACE(trim(lower(a.predicate_id)), 'skos:', '') = 'narrowmatch'
+  AND NULLIF(TRIM(a.relationship_id), '') IS NULL;
 
+-- relatedMatch → domain-specific: Procedure
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
                                           concept_id_2,
                                           relationship_id,
@@ -185,8 +261,9 @@ SELECT b.concept_id,
 FROM temp.concept_check_ns_raw a
     INNER JOIN vocab.concept_s_staging b
     ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
-WHERE trim(lower(a.predicate_id)) = 'skos:relatedmatch'
-AND a.target_domain_id = 'Procedure';
+WHERE REPLACE(trim(lower(a.predicate_id)), 'skos:', '') = 'relatedmatch'
+AND a.target_domain_id = 'Procedure'
+AND NULLIF(TRIM(a.relationship_id), '') IS NULL;
 
 
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
@@ -204,9 +281,11 @@ SELECT a.target_concept_id,
 FROM temp.concept_check_ns_raw a
     INNER JOIN vocab.concept_s_staging b
     ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
-WHERE trim(lower(a.predicate_id)) = 'skos:relatedmatch'
-AND a.target_domain_id = 'Procedure';
+WHERE REPLACE(trim(lower(a.predicate_id)), 'skos:', '') = 'relatedmatch'
+AND a.target_domain_id = 'Procedure'
+AND NULLIF(TRIM(a.relationship_id), '') IS NULL;
 
+-- relatedMatch → domain-specific: Condition
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
                                           concept_id_2,
                                           relationship_id,
@@ -222,8 +301,9 @@ SELECT b.concept_id,
 FROM temp.concept_check_ns_raw a
     INNER JOIN vocab.concept_s_staging b
     ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
-WHERE trim(lower(a.predicate_id)) = 'skos:relatedmatch'
-AND a.target_domain_id = 'Condition';
+WHERE REPLACE(trim(lower(a.predicate_id)), 'skos:', '') = 'relatedmatch'
+AND a.target_domain_id = 'Condition'
+AND NULLIF(TRIM(a.relationship_id), '') IS NULL;
 
 
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
@@ -241,9 +321,11 @@ SELECT a.target_concept_id,
 FROM temp.concept_check_ns_raw a
     INNER JOIN vocab.concept_s_staging b
     ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
-WHERE trim(lower(a.predicate_id)) = 'skos:relatedmatch'
-AND a.target_domain_id = 'Condition';
+WHERE REPLACE(trim(lower(a.predicate_id)), 'skos:', '') = 'relatedmatch'
+AND a.target_domain_id = 'Condition'
+AND NULLIF(TRIM(a.relationship_id), '') IS NULL;
 
+-- relatedMatch → domain-specific: Measurement
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
                                           concept_id_2,
                                           relationship_id,
@@ -259,8 +341,9 @@ SELECT b.concept_id,
 FROM temp.concept_check_ns_raw a
     INNER JOIN vocab.concept_s_staging b
     ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
-WHERE trim(lower(a.predicate_id)) = 'skos:relatedmatch'
-AND a.target_domain_id = 'Measurement';
+WHERE REPLACE(trim(lower(a.predicate_id)), 'skos:', '') = 'relatedmatch'
+AND a.target_domain_id = 'Measurement'
+AND NULLIF(TRIM(a.relationship_id), '') IS NULL;
 
 
 INSERT INTO vocab.concept_rel_s_staging (concept_id_1,
@@ -278,8 +361,9 @@ SELECT a.target_concept_id,
 FROM temp.concept_check_ns_raw a
     INNER JOIN vocab.concept_s_staging b
     ON UPPER(TRIM(a.source_concept_code)) = UPPER(TRIM(b.concept_code))
-WHERE trim(lower(a.predicate_id)) = 'skos:relatedmatch'
-AND a.target_domain_id = 'Measurement';
+WHERE REPLACE(trim(lower(a.predicate_id)), 'skos:', '') = 'relatedmatch'
+AND a.target_domain_id = 'Measurement'
+AND NULLIF(TRIM(a.relationship_id), '') IS NULL;
 
 
 
@@ -330,7 +414,7 @@ WITH parent_hierarchy AS (
                   INNER JOIN vocab.concept_ancestor ca ON css.target_concept_id = ca.descendant_concept_id
          WHERE ancestor_concept_id != 0
            AND ancestor_concept_id < 2000000000
-           AND lower(trim(css.predicate_id)) = 'skos:broadmatch'
+           AND REPLACE(lower(trim(css.predicate_id)), 'skos:', '') = 'broadmatch'
 
      )
 INSERT
@@ -348,7 +432,7 @@ WITH children AS (
     SELECT concept_id,
            target_concept_id as child
     FROM vocab.concept_s_staging
-    WHERE lower(trim(predicate_id)) = 'skos:narrowmatch'
+    WHERE REPLACE(lower(trim(predicate_id)), 'skos:', '') = 'narrowmatch'
 )
 INSERT
 INTO vocab.concept_anc_s_staging(ancestor_concept_id,
