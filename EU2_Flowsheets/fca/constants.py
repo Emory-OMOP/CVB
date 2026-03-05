@@ -192,59 +192,6 @@ ASSESSMENT_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r'\bWeight\b', re.I),            'weight'),
     (re.compile(r'\bHeight\b', re.I),            'height'),
     (re.compile(r'\bBMI\b', re.I),               'bmi'),
-    # --- Patterns added by clinical reasoning pass ---
-    # Range of motion (rehab/ortho)
-    (re.compile(r'\bROM\b|Range\s+of\s+Motion', re.I), 'range_of_motion'),
-    # Sleep
-    (re.compile(r'\bSleep\b|Insomnia\b', re.I),  'sleep_assessment'),
-    # Muscle strength testing
-    (re.compile(r'\bMMT\b|Manual\s+Muscle|Muscle\s+Strength|Strength\s+Test', re.I),
-     'muscle_strength'),
-    # Allergy
-    (re.compile(r'\bAllerg\w*\b', re.I),          'allergy_assessment'),
-    # Bladder
-    (re.compile(r'\bBladder\b', re.I),            'bladder_function'),
-    # CPAP/BiPAP/ventilator settings
-    (re.compile(r'\b(?:CPAP|BiPAP|IPAP|EPAP)\b', re.I), 'ventilator_settings'),
-    # Perceived exertion / Borg scale
-    (re.compile(r'Perceived\s+Exertion|Borg\s+Scale', re.I), 'perceived_exertion'),
-    # Continence / incontinence
-    (re.compile(r'\b(?:Continen\w*|Incontinen\w*)\b', re.I), 'continence'),
-    # Spasticity / clonus
-    (re.compile(r'\b(?:Spastic\w*|Ashworth|Clonus)\b', re.I), 'spasticity'),
-    # Appetite
-    (re.compile(r'\bAppetite\b', re.I),           'appetite'),
-    # Swelling
-    (re.compile(r'\bSwell\w*\b', re.I),           'swelling'),
-    # Restraint
-    (re.compile(r'\bRestrain\w*\b', re.I),        'restraint'),
-    # Suction
-    (re.compile(r'\bSuction\w*\b', re.I),         'suction'),
-    # Vomiting / emesis
-    (re.compile(r'\b(?:Emesis|Vomit\w*)\b', re.I), 'vomiting'),
-    # Enteral / parenteral feeding
-    (re.compile(r'\b(?:Tube\s+Feed|Enteral|Parenteral|TPN)\b', re.I),
-     'enteral_feeding'),
-    # Cranial nerve exam
-    (re.compile(r'\bCranial\s+Nerve\b', re.I),   'cranial_nerve'),
-    # Aphasia / dysarthria
-    (re.compile(r'\b(?:Aphasi\w*|Dysarthri\w*|Dysphasi\w*)\b', re.I),
-     'speech_disorder'),
-    # Diaphoresis / sweating
-    (re.compile(r'\b(?:Diaphores\w*|Sweat\w*)\b', re.I), 'diaphoresis'),
-    # Rigidity
-    (re.compile(r'\bRigid\w*\b', re.I),          'rigidity'),
-    # Pruritus / itching
-    (re.compile(r'\b(?:Pruritus|Itch\w*)\b', re.I), 'pruritus'),
-    # FIM Score
-    (re.compile(r'\bFIM\s+Score\b', re.I),       'fim_score'),
-    # Agitation
-    (re.compile(r'\b(?:Agitat\w*|Combative)\b', re.I), 'agitation'),
-    # Skin findings (erythema, rash, bruise, etc.)
-    (re.compile(r'\b(?:Rash|Bruise|Ecchymos\w*|Erythema|Blister|Abrasion|Laceration)\b', re.I),
-     'skin_finding'),
-    # Bowel movement
-    (re.compile(r'\bBowel\s+Movement\b|\bBM\b', re.I), 'bowel_movement'),
 ]
 
 
