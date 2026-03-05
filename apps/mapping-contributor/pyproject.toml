@@ -1,0 +1,17 @@
+[project]
+name = "mapping-contributor"
+version = "0.1.0"
+description = "Streamlit app for CVB mapping workflows"
+requires-python = ">=3.11"
+dependencies = [
+    "streamlit>=1.36.0",
+    "pandas>=2.0",
+    "psycopg2-binary>=2.9",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["lib"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
