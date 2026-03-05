@@ -1,0 +1,50 @@
+{
+  "checks": [
+    {
+      "name": "completeness",
+      "passed": false,
+      "message": "1 objects not in any concept",
+      "details": {
+        "orphan_count": 1,
+        "sample": [
+          "304000800"
+        ]
+      }
+    },
+    {
+      "name": "partition_validity",
+      "passed": true,
+      "message": "All items in valid categories (A/B/C)",
+      "details": {}
+    },
+    {
+      "name": "partition_coverage",
+      "passed": true,
+      "message": "A=16204, B=1541, C=38192, total=55937",
+      "details": {}
+    },
+    {
+      "name": "lattice_integrity",
+      "passed": true,
+      "message": "50 concepts verified (intent \u2286 closure)",
+      "details": {}
+    },
+    {
+      "name": "assessment_coverage",
+      "passed": true,
+      "message": "517/517 compositional concepts have assessment mappings (100.0%)",
+      "details": {}
+    },
+    {
+      "name": "information_preservation",
+      "passed": true,
+      "message": "Mean IPR=0.9485 (322/1944 below 0.85)",
+      "details": {
+        "mean_ipr": 0.9485,
+        "n_concepts": 1944,
+        "below_085": 322
+      }
+    }
+  ],
+  "all_passed": false
+}
