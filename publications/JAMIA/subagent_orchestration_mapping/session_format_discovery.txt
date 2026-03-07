@@ -1,0 +1,62 @@
+=== Claude Code Session Log Discovery ===
+Date: Fri Mar  6 08:44:13 PST 2026
+
+=== Projects directory listing ===
+total 32
+drwx------    8 danielsmith  staff    256 Mar  1 14:10 -home-dsmit51-git-repos
+drwx------    4 danielsmith  staff    128 Feb  9 05:10 -home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-ohdsi-agent
+drwx------   15 danielsmith  staff    480 Feb  9 09:09 -home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-ohdsi-agent--private
+drwx------   20 danielsmith  staff    640 Mar  5 09:01 -home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise
+drwx------  129 danielsmith  staff   4128 Mar  6 08:16 -home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise--private
+drwx------    4 danielsmith  staff    128 Mar  1 14:10 -home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise-dbt-EmoryOmopSubsampling
+drwx------    3 danielsmith  staff     96 Feb  4 23:08 -home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise-dbt-EmoryOmopSubsampling--private
+drwx------    4 danielsmith  staff    128 Mar  3 15:48 -home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise-dbt-EmoryPatientIdentityStabilization
+drwx------   10 danielsmith  staff    320 Mar  4 20:41 -home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise-dbt-EmoryPatientIdentityStabilization--private
+drwx------    3 danielsmith  staff     96 Mar  1 14:10 -home-dsmit51-git-repos-ohdsi-direct-contrib-GDE2025RheumInfection
+drwx------@   3 danielsmith  staff     96 Mar  1 14:48 -private-tmp-claude
+drwxr-xr-x@   9 danielsmith  staff    288 Feb 25 09:30 -Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-ohdsi-agent
+drwx------@ 130 danielsmith  staff   4160 Mar  1 21:45 -Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-ohdsi-agent--private
+drwx------@  21 danielsmith  staff    672 Mar  5 21:17 -Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-omop--private
+drwxr-xr-x@   8 danielsmith  staff    256 Feb 11 05:37 -Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise
+drwx------@ 156 danielsmith  staff   4992 Mar  3 16:20 -Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise--private
+drwx------@   4 danielsmith  staff    128 Mar  5 08:31 -Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-omop-sidecar--private
+drwx------@  12 danielsmith  staff    384 Mar  2 18:30 -Users-danielsmith-git-repos-lits--EmoryDataSolutions-sb-patient-journey--private
+drwx------@   3 danielsmith  staff     96 Feb 27 00:49 -Users-danielsmith-git-repos-lits-public-repo-ds-airflow-dags
+drwx------@  56 danielsmith  staff   1792 Mar  6 07:56 -Users-danielsmith-git-repos-org--Emory-OMOP-CVB--private
+drwxr-xr-x@  52 danielsmith  staff   1664 Mar  4 20:34 -Users-danielsmith-git-repos-personal--private
+drwxr-xr-x@   3 danielsmith  staff     96 Feb 12 05:32 -Users-danielsmith-git-repos-personal-central-mcp-development
+drwx------@ 301 danielsmith  staff   9632 Mar  5 17:34 -Users-danielsmith-git-repos-personal-central-mcp-development--private
+drwx------@   3 danielsmith  staff     96 Feb 15 12:49 -Users-danielsmith-git-repos-personal-personal-assistant--private
+drwx------@   3 danielsmith  staff     96 Mar  3 16:50 -Users-danielsmith-git-repos-personal-Vocabulary-v5-0
+drwx------   28 danielsmith  staff    896 Mar  3 16:50 .
+drwx------@  27 danielsmith  staff    864 Mar  6 08:43 ..
+-rw-r--r--@   1 danielsmith  staff  14340 Feb 11 05:37 .DS_Store
+
+=== Looking for CVB-related project dirs ===
+-home-dsmit51-git-repos
+-home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-ohdsi-agent
+-home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-ohdsi-agent--private
+-home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise
+-home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise--private
+-home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise-dbt-EmoryOmopSubsampling
+-home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise-dbt-EmoryOmopSubsampling--private
+-home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise-dbt-EmoryPatientIdentityStabilization
+-home-dsmit51-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise-dbt-EmoryPatientIdentityStabilization--private
+-home-dsmit51-git-repos-ohdsi-direct-contrib-GDE2025RheumInfection
+-private-tmp-claude
+-Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-ohdsi-agent
+-Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-ohdsi-agent--private
+-Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-omop--private
+-Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise
+-Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-omop-enterprise--private
+-Users-danielsmith-git-repos-lits--EmoryDataSolutions-emory-omop-sidecar--private
+-Users-danielsmith-git-repos-lits--EmoryDataSolutions-sb-patient-journey--private
+-Users-danielsmith-git-repos-lits-public-repo-ds-airflow-dags
+-Users-danielsmith-git-repos-org--Emory-OMOP-CVB--private
+-Users-danielsmith-git-repos-personal--private
+-Users-danielsmith-git-repos-personal-central-mcp-development
+-Users-danielsmith-git-repos-personal-central-mcp-development--private
+-Users-danielsmith-git-repos-personal-personal-assistant--private
+-Users-danielsmith-git-repos-personal-Vocabulary-v5-0
+
+=== Most recent session file structure ===

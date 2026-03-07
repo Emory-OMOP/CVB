@@ -1,0 +1,136 @@
+================================================================================
+SUBAGENT ORCHESTRATION — AGGREGATE COUNTS
+Generated: 2026-03-06T09:03:18.564913
+================================================================================
+
+OVERALL COUNTS
+------------------------------------------------------------
+  Total session files:         154
+    Empty/abandoned:           7
+    Orchestrator sessions:     27
+    Subagent sessions:         110
+    Compact (context mgmt):    10
+
+  Total characters:            25,515,676
+  Total words:                 2,525,667
+  Total messages:              22,695
+  Total tool calls:            9,420
+
+BY ROLE (all sessions)
+------------------------------------------------------------
+  User (input):    18,902,108 chars / 1,785,009 words
+  Assistant (out):  6,613,568 chars / 740,658 words
+  Ratio (user:asst chars):  2.86:1
+
+BY MODEL
+------------------------------------------------------------
+  claude-opus-4-6:
+    Sessions: 127  |  Chars: 24,090,349  |  Words: 2,400,228  |  Msgs: 21,696  |  Tools: 9,019
+  claude-haiku-4-5-20251001:
+    Sessions: 19  |  Chars: 1,425,327  |  Words: 125,439  |  Msgs: 997  |  Tools: 401
+  unknown:
+    Sessions: 1  |  Chars: 0  |  Words: 0  |  Msgs: 2  |  Tools: 0
+
+BY SESSION TYPE
+------------------------------------------------------------
+  Orchestrator (27 sessions):
+    Chars: 10,186,340  |  Words: 1,024,950  |  Msgs: 7,785  |  Tools: 2,682
+  Subagent (110 sessions):
+    Chars: 14,292,741  |  Words: 1,389,107  |  Msgs: 14,583  |  Tools: 6,632
+  Compact (10 sessions):
+    Chars: 1,036,595  |  Words: 111,610  |  Msgs: 327  |  Tools: 106
+
+CLINICAL ORCHESTRATION SESSIONS (>=10 subagents)
+------------------------------------------------------------
+  Orchestrator sessions:  3
+  Total subagents:        83
+
+  35388726-c6b...  [2026-03-05T17:31]
+    Duration:       1154 min
+    Model:          claude-opus-4-6
+    Orchestrator:   399,727 chars / 36,524 words / 374 msgs / 105 tools
+    Subagents (10): 646,084 chars / 65,654 words / 180 msgs / 67 tools
+    Combined:       1,045,811 chars
+
+  e96bdb30-d86...  [2026-03-06T12:44]
+    Duration:       28 min
+    Model:          claude-opus-4-6
+    Orchestrator:   524,634 chars / 56,323 words / 242 msgs / 81 tools
+    Subagents (10): 1,598,612 chars / 158,459 words / 1848 msgs / 857 tools
+    Combined:       2,123,246 chars
+
+  13533458-019...  [2026-03-06T12:46]
+    Duration:       251 min
+    Model:          claude-opus-4-6
+    Orchestrator:   155,787 chars / 14,765 words / 358 msgs / 96 tools
+    Subagents (63): 9,552,007 chars / 944,807 words / 10901 msgs / 5022 tools
+    Combined:       9,707,794 chars
+
+CLINICAL SUBAGENT DISTRIBUTION
+------------------------------------------------------------
+  Chars:
+    min=52,963  max=268,898  mean=142,128  median=141,671  total=11,796,703
+  Words:
+    min=5,255  max=26,327  mean=14,083  median=13,960  total=1,168,920
+  Messages:
+    min=10  max=428  mean=155  median=157  total=12,929
+  Tool calls:
+    min=3  max=203  mean=71  median=72  total=5,946
+  Duration (min):
+    min=0.9  max=10.9  mean=4.3  median=4.4  total=355
+
+  By model:
+    claude-opus-4-6: 82 agents
+    claude-haiku-4-5-20251001: 1 agents
+
+TIMELINE (orchestrator sessions, chronological)
+------------------------------------------------------------
+  2026-02-25   143m     159,720 chars    89 msgs    27 tools    4 agents  6c1d823b
+  2026-02-25  9647m     362,557 chars   296 msgs   111 tools    2 agents  8bf6b4e5
+  2026-03-04    41m     161,384 chars    79 msgs    23 tools    5 agents  08e3cdc6
+  2026-03-04    71m     364,351 chars   421 msgs   132 tools    2 agents  b8092f7b
+  2026-03-04    48m     252,446 chars   209 msgs    70 tools    5 agents  7b4b1994
+  2026-03-04   106m     569,741 chars   741 msgs   321 tools    3 agents  53ac910c
+  2026-03-04    47m     284,178 chars   345 msgs   129 tools    0 agents  ec68e8ab
+  2026-03-04   267m     260,172 chars   100 msgs    16 tools    3 agents  b76fb308
+  2026-03-04   671m     648,963 chars   893 msgs   329 tools    1 agents  b16c4cf8
+  2026-03-05   599m     762,179 chars   752 msgs   265 tools    1 agents  eecd60ea
+  2026-03-05    37m     329,734 chars   350 msgs   140 tools    0 agents  219f0563
+  2026-03-05   136m     668,525 chars   489 msgs   181 tools    0 agents  deb60ca1
+  2026-03-05  1154m     399,727 chars   374 msgs   105 tools   10 agents  35388726
+  2026-03-05   999m   1,964,011 chars   890 msgs   302 tools    0 agents  5ffdb36e
+  2026-03-06      ?           0 chars     2 msgs     0 tools    0 agents  e63d482c
+  2026-03-06    20m     387,796 chars   171 msgs    59 tools    0 agents  b25b63f6
+  2026-03-06    28m     524,634 chars   242 msgs    81 tools   10 agents  e96bdb30
+  2026-03-06   251m     155,787 chars   358 msgs    96 tools   63 agents  13533458
+  2026-03-06    16m     166,805 chars   154 msgs    49 tools    0 agents  c6d52466
+  2026-03-06    26m     422,116 chars   124 msgs    38 tools    0 agents  83971089
+  2026-03-06    27m     344,006 chars   155 msgs    48 tools    0 agents  ed566bab
+  2026-03-06    22m     444,226 chars   155 msgs    50 tools    0 agents  dce747f2
+  2026-03-06     8m      59,070 chars    51 msgs    17 tools    0 agents  86ce4580
+  2026-03-06    34m     191,794 chars   112 msgs    30 tools    0 agents  0dbba6cc
+  2026-03-06     3m       2,339 chars     9 msgs     0 tools    0 agents  0676a85c
+  2026-03-06    19m     158,812 chars   107 msgs    31 tools    0 agents  94c7cef6
+  2026-03-06    64m     141,267 chars   117 msgs    32 tools    1 agents  fd1f96a5
+
+================================================================================
+PUBLICATION-READY SUMMARY TABLE
+================================================================================
+
+  Date range:                    2026-02-25 to 2026-03-06
+  Orchestrator sessions:         27
+  Subagent sessions:             110
+  Total sessions (incl compact): 147
+
+  Orchestrator content:          10,186,340 chars / 1,024,950 words
+  Subagent content:              14,292,741 chars / 1,389,107 words
+  Total content:                 25,515,676 chars / 2,525,667 words
+
+  Orchestrator tool calls:       2,682
+  Subagent tool calls:           6,632
+  Total tool calls:              9,420
+
+  Total messages:                22,695
+  Avg chars/subagent session:    129,934
+  Avg msgs/subagent session:     132
+  Avg tools/subagent session:    60
