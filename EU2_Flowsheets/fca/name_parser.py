@@ -16,14 +16,16 @@ from .constants import (
     ASSESSMENT_PATTERNS,
     BODY_SITE_PATTERNS,
     LATERALITY_PATTERNS,
+    METHOD_PATTERNS,
+    TEMPORAL_PATTERNS,
 )
 
 
 def parse_display_name(name: str) -> dict[str, str | None]:
     """Extract clinical attributes from a flowsheet DISP_NAME.
 
-    Returns dict with keys: laterality, body_region, body_site, assessment.
-    Values are None when not detected.
+    Returns dict with keys: laterality, body_region, body_site, assessment,
+    method, temporal. Values are None when not detected.
     """
     if not name or not isinstance(name, str):
         return {
@@ -31,6 +33,8 @@ def parse_display_name(name: str) -> dict[str, str | None]:
             'body_region': None,
             'body_site': None,
             'assessment': None,
+            'method': None,
+            'temporal': None,
         }
 
     name = name.strip()
@@ -39,6 +43,7 @@ def parse_display_name(name: str) -> dict[str, str | None]:
     body_region_from_lat = None
     body_site = None
     assessment = None
+    method = None
 
     # Extract laterality (first match wins)
     for pattern, match in LATERALITY_PATTERNS:
@@ -63,11 +68,26 @@ def parse_display_name(name: str) -> dict[str, str | None]:
             assessment = atype
             break
 
+    # Extract method/route qualifier (first match wins)
+    for pattern, mtype in METHOD_PATTERNS:
+        if pattern.search(name):
+            method = mtype
+            break
+
+    # Extract temporal/context qualifier (first match wins)
+    temporal = None
+    for pattern, ttype in TEMPORAL_PATTERNS:
+        if pattern.search(name):
+            temporal = ttype
+            break
+
     return {
         'laterality': laterality,
         'body_region': body_region_from_lat,
         'body_site': body_site,
         'assessment': assessment,
+        'method': method,
+        'temporal': temporal,
     }
 
 

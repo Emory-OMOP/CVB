@@ -18,6 +18,11 @@ import argparse
 import json
 from pathlib import Path
 
+from .constants import (
+    PRE_COORDINATED_METHOD_CONCEPTS,
+    PRE_COORDINATED_TEMPORAL_CONCEPTS,
+)
+
 
 # Template categories that are administrative/workflow (not clinical)
 ADMIN_TEMPLATE_CATS = {
@@ -62,6 +67,8 @@ def classify_concept(intent: list[str], extent: list[str]) -> dict:
     has_assessment = any(a.startswith('assessment:') for a in intent)
     has_val_type = any(a.startswith('val_type:') for a in intent)
     has_value_domain = any(a.startswith('value_domain:') for a in intent)
+    has_method = any(a.startswith('method:') for a in intent)
+    has_temporal = any(a.startswith('temporal:') for a in intent)
 
     assessments = [
         a.split(':', 1)[1] for a in intent if a.startswith('assessment:')
@@ -71,6 +78,12 @@ def classify_concept(intent: list[str], extent: list[str]) -> dict:
     ]
     lateralities = [
         a.split(':', 1)[1] for a in intent if a.startswith('laterality:')
+    ]
+    methods = [
+        a.split(':', 1)[1] for a in intent if a.startswith('method:')
+    ]
+    temporals = [
+        a.split(':', 1)[1] for a in intent if a.startswith('temporal:')
     ]
     val_types = [
         a.split(':', 1)[1] for a in intent if a.startswith('val_type:')
@@ -103,12 +116,50 @@ def classify_concept(intent: list[str], extent: list[str]) -> dict:
             'routing': 'noMatch',
         }
 
+    # Temporal context: has assessment + temporal qualifier.
+    # Check for pre-coordinated concept first; otherwise compositional B.
+    if has_assessment and has_temporal:
+        # Check if a pre-coordinated concept exists
+        has_precoord_temporal = any(
+            (a, t) in PRE_COORDINATED_TEMPORAL_CONCEPTS
+            for a in assessments for t in temporals
+        )
+        if has_precoord_temporal and not has_body_site and not has_laterality:
+            result = {
+                'category': 'A',
+                'reason': 'atomic_with_temporal',
+                'omop_domain': _route_domain(val_types, assessments),
+                'routing': '1:1',
+                'assessments': assessments,
+                'temporals': temporals,
+            }
+            if methods:
+                result['methods'] = methods
+            return result
+
+        # Compositional: assessment + temporal (+ optional body_site/method)
+        result = {
+            'category': 'B',
+            'reason': 'compositional_temporal',
+            'omop_domain': 'Observation',
+            'routing': 'observation_with_qualifier',
+            'assessments': assessments,
+            'temporals': temporals,
+        }
+        if body_sites:
+            result['body_sites'] = body_sites
+        if lateralities:
+            result['lateralities'] = lateralities
+        if methods:
+            result['methods'] = methods
+        return result
+
     # Compositional: has assessment AND (body_site or laterality)
     if has_assessment and (has_body_site or has_laterality):
         # Check if this is a "simple lateralized" vital that has
         # a pre-coordinated OMOP concept (e.g., pupil size L/R)
         if any(a in ATOMIC_ASSESSMENTS for a in assessments):
-            return {
+            result = {
                 'category': 'A',
                 'reason': 'atomic_with_site',
                 'omop_domain': _route_domain(val_types, assessments),
@@ -117,8 +168,11 @@ def classify_concept(intent: list[str], extent: list[str]) -> dict:
                 'lateralities': lateralities,
                 'assessments': assessments,
             }
+            if methods:
+                result['methods'] = methods
+            return result
 
-        return {
+        result = {
             'category': 'B',
             'reason': 'compositional',
             'omop_domain': 'Observation',
@@ -127,8 +181,23 @@ def classify_concept(intent: list[str], extent: list[str]) -> dict:
             'lateralities': lateralities,
             'assessments': assessments,
         }
+        if methods:
+            result['methods'] = methods
+        return result
 
-    # Atomic: has assessment but NO body_site/laterality
+    # Atomic with method: has assessment + method but NO body_site/laterality.
+    # Pre-coordinated SNOMED concept exists for most (assessment, method) pairs.
+    if has_assessment and has_method and not has_body_site and not has_laterality:
+        return {
+            'category': 'A',
+            'reason': 'atomic_with_method',
+            'omop_domain': _route_domain(val_types, assessments),
+            'routing': '1:1',
+            'assessments': assessments,
+            'methods': methods,
+        }
+
+    # Atomic: has assessment but NO body_site/laterality/method
     if has_assessment and not has_body_site and not has_laterality:
         return {
             'category': 'A',

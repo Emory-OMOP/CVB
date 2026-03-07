@@ -225,6 +225,10 @@ def build_context(
             _add(f'laterality:{parsed["laterality"]}')
         if parsed['assessment']:
             _add(f'assessment:{parsed["assessment"]}')
+        if parsed.get('method'):
+            _add(f'method:{parsed["method"]}')
+        if parsed.get('temporal'):
+            _add(f'temporal:{parsed["temporal"]}')
 
         # --- value domain from custom lists ---
         if flo_id in custom_lists:

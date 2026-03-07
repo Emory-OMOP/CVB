@@ -217,9 +217,9 @@ def compute_lattice_stratified(
         })
 
     # --- Pass 2: Fine-grained refinement ---
-    fine_prefixes = ['body_site:', 'laterality:', 'unit:']
+    fine_prefixes = ['body_site:', 'laterality:', 'method:', 'temporal:', 'unit:']
 
-    print("Pass 2: Refining with body_site + laterality...")
+    print("Pass 2: Refining with body_site, laterality, method, temporal...")
     fine_inc, fine_attrs, fine_col_idx = _filter_columns(
         incidence, attributes, fine_prefixes
     )

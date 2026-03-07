@@ -49,7 +49,7 @@ BODY_SITE_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r'\b(?:RUE|LUE|[RL]\s*(?:Arm|Hand|Wrist|Elbow|Shoulder)|Upper\s+Extrem)', re.I),
      'upper_extremity'),
     # Head/face
-    (re.compile(r'\b(?:Pupil|Eye|Ocular|Facial|Face|Head|Scalp|Ear|Oral|Mouth)\b', re.I),
+    (re.compile(r'\b(?:Pupil|Eye|Ocular|Facial|Face|Head|Scalp|Ear|Mouth)\b', re.I),
      'head_face'),
     # Chest/thorax
     (re.compile(r'\b(?:Chest|Thorax|Thoracic|Lung|Pulmonary|Breath\s+Sound|Cardiac|Heart)\b', re.I),
@@ -193,6 +193,103 @@ ASSESSMENT_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r'\bHeight\b', re.I),            'height'),
     (re.compile(r'\bBMI\b', re.I),               'bmi'),
 ]
+
+
+# --- Method / Route patterns ---
+# Detects measurement method or route qualifiers in DISP_NAME.
+# Order: most specific first. First match wins.
+METHOD_PATTERNS: list[tuple[re.Pattern, str]] = [
+    # BP body position (most common)
+    (re.compile(r'\bStanding\b|Orthostatic', re.I),   'standing'),
+    (re.compile(r'\bSitting\b|Seated', re.I),         'sitting'),
+    (re.compile(r'\bSupine\b|Lying', re.I),            'supine'),
+    # BP measurement device/method
+    (re.compile(r'\bA[\s-]?Line\b|Arterial\s+Line', re.I), 'arterial_line'),
+    (re.compile(r'\bNIBP\b|Non[\s-]?Invasive', re.I), 'non_invasive'),
+    (re.compile(r'\bCuff\b', re.I),                    'cuff'),
+    # Temperature route
+    (re.compile(r'\bOral\b', re.I),                    'oral'),
+    (re.compile(r'\bRectal\b', re.I),                  'rectal'),
+    (re.compile(r'\bAxillary\b', re.I),                'axillary'),
+    (re.compile(r'\bTympanic\b|Ear\s+Temp', re.I),    'tympanic'),
+]
+
+
+# --- Pre-coordinated method concepts ---
+# Maps (assessment_type, method) → (concept_id, concept_name).
+# Used for A items that have a method qualifier with a pre-coordinated
+# SNOMED concept. Preferred over compositional B when available.
+PRE_COORDINATED_METHOD_CONCEPTS: dict[tuple[str, str], tuple[int, str]] = {
+    # Blood pressure + position/device
+    ('blood_pressure', 'standing'):      (4060833,  'Standing blood pressure'),
+    ('blood_pressure', 'sitting'):       (4060834,  'Sitting blood pressure'),
+    ('blood_pressure', 'arterial_line'): (4302410,  'Invasive blood pressure'),
+    ('blood_pressure', 'non_invasive'):  (36716965, 'Non-invasive blood pressure'),
+    ('blood_pressure', 'cuff'):          (36716965, 'Non-invasive blood pressure'),
+    # Temperature + route
+    ('temperature', 'oral'):             (4218834,  'Oral temperature'),
+    ('temperature', 'rectal'):           (4143731,  'Rectal temperature'),
+    ('temperature', 'axillary'):         (4188706,  'Axillary temperature'),
+    ('temperature', 'tympanic'):         (4215364,  'Tympanic temperature'),
+}
+
+
+# --- Method qualifier concepts (fallback for compositional B items) ---
+# Used when a method-qualified item also has body_site/laterality,
+# requiring a compositional mapping with "Has method" relationship.
+METHOD_QUALIFIER_CONCEPTS: dict[str, tuple[int, str]] = {
+    'standing':      (4033753,  'Orthostatic body position'),
+    'sitting':       (4142787,  'Sitting position'),
+    'supine':        (4221822,  'Supine body position'),
+    'arterial_line': (4126195,  'Arterial line'),
+    'non_invasive':  (36716965, 'Non-invasive blood pressure'),
+    'cuff':          (4322632,  'Blood pressure cuff'),
+    'oral':          (4132161,  'Oral'),
+    'rectal':        (4290759,  'Rectal'),
+    'axillary':      (4218166,  'Axillary approach'),
+    'tympanic':      (4168656,  'Intratympanic'),
+}
+
+
+# --- Temporal / Context patterns ---
+# Detects temporal qualifiers in DISP_NAME.
+# Order: most specific first. First match wins.
+TEMPORAL_PATTERNS: list[tuple[re.Pattern, str]] = [
+    # Dialysis timing
+    (re.compile(r'\bPre[\s-]?Dialysis\b', re.I),        'pre_dialysis'),
+    (re.compile(r'\bPost[\s-]?Dialysis\b', re.I),       'post_dialysis'),
+    # Surgical/procedural timing
+    (re.compile(r'\bPre[\s-]?Op(?:erative)?\b', re.I),  'pre_op'),
+    (re.compile(r'\bPost[\s-]?Op(?:erative)?\b', re.I), 'post_op'),
+    (re.compile(r'\bIntra[\s-]?Op(?:erative)?\b', re.I), 'intra_op'),
+    # Activity state
+    (re.compile(r'\bat\s+[Rr]est\b', re.I),             'at_rest'),
+    (re.compile(r'\bwith\s+[Aa]ctivity\b', re.I),       'with_activity'),
+    # Dry weight (dialysis-specific weight concept)
+    (re.compile(r'\b[Dd]ry\s+[Ww]eight\b', re.I),       'dry_weight'),
+]
+
+
+# --- Pre-coordinated temporal concepts ---
+# Maps (assessment_type, temporal) → (concept_id, concept_name).
+# Used for A items when a pre-coordinated SNOMED concept exists.
+PRE_COORDINATED_TEMPORAL_CONCEPTS: dict[tuple[str, str], tuple[int, str]] = {
+    ('weight', 'dry_weight'):  (40484200, 'Dry body weight'),
+}
+
+
+# --- Temporal qualifier concepts (for compositional B items) ---
+# Used when temporal detection triggers compositional mapping
+# with "Has temporal context" relationship.
+TEMPORAL_QUALIFIER_CONCEPTS: dict[str, tuple[int, str]] = {
+    'pre_dialysis':  (4144786, 'Before procedure'),
+    'post_dialysis': (4123428, 'Postprocedural period'),
+    'pre_op':        (4119031, 'Preoperative'),
+    'post_op':       (4118656, 'Postoperative period'),
+    'intra_op':      (4119031, 'Preoperative'),  # closest available
+    'at_rest':       (4137022, 'At rest'),
+    'with_activity': (4203112, 'During exercise'),
+}
 
 
 # --- VAL_TYPE_C code mapping ---
@@ -371,4 +468,12 @@ QUALIFIER_CONCEPTS: dict[tuple[str | None, str | None], int] = {
     (None, 'right'):                  4080761,   # Right (SNOMED 24028007) — Qualifier Value
     (None, 'left'):                   4300877,   # Left (SNOMED 7771000) — Qualifier Value
     (None, 'bilateral'):              4080761,   # TODO: no standard "Bilateral" qualifier found; using Right as placeholder
+}
+
+
+# --- Qualifier type → OMOP relationship_id ---
+QUALIFIER_RELATIONSHIP_MAP: dict[str, str] = {
+    'body_site': 'Has finding site',
+    'method': 'Has method',
+    'temporal': 'Has temporal context',
 }

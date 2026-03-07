@@ -19,7 +19,14 @@ import csv
 import json
 from pathlib import Path
 
-from .constants import QUALIFIER_CONCEPTS
+from .constants import (
+    METHOD_QUALIFIER_CONCEPTS,
+    PRE_COORDINATED_METHOD_CONCEPTS,
+    PRE_COORDINATED_TEMPORAL_CONCEPTS,
+    QUALIFIER_CONCEPTS,
+    QUALIFIER_RELATIONSHIP_MAP,
+    TEMPORAL_QUALIFIER_CONCEPTS,
+)
 
 
 # --- Compositional mapping CSV schema ---
@@ -30,6 +37,10 @@ COMPOSITIONAL_HEADERS = [
     'assessment_concept_name',
     'qualifier_concept_id',
     'qualifier_concept_name',
+    'method_qualifier_concept_id',
+    'method_qualifier_concept_name',
+    'temporal_qualifier_concept_id',
+    'temporal_qualifier_concept_name',
     'value_domain_type',
     'fca_concept_id',
     'predicate_id',
@@ -190,6 +201,8 @@ def generate_compositional_mappings(
         assessments = concept.get('assessments', [])
         body_sites = concept.get('body_sites', [])
         lateralities = concept.get('lateralities', [])
+        methods = concept.get('methods', [])
+        temporals = concept.get('temporals', [])
 
         # Get assessment concept
         assessment_id = 0
@@ -212,6 +225,22 @@ def generate_compositional_mappings(
             elif (None, lat) in QUALIFIER_CONCEPTS:
                 qualifier_id = QUALIFIER_CONCEPTS[(None, lat)]
                 qualifier_name = lat or ''
+
+        # Get method qualifier concept (if present)
+        method_qualifier_id = 0
+        method_qualifier_name = ''
+        if methods:
+            m = methods[0]
+            if m in METHOD_QUALIFIER_CONCEPTS:
+                method_qualifier_id, method_qualifier_name = METHOD_QUALIFIER_CONCEPTS[m]
+
+        # Get temporal qualifier concept (if present)
+        temporal_qualifier_id = 0
+        temporal_qualifier_name = ''
+        if temporals:
+            t = temporals[0]
+            if t in TEMPORAL_QUALIFIER_CONCEPTS:
+                temporal_qualifier_id, temporal_qualifier_name = TEMPORAL_QUALIFIER_CONCEPTS[t]
 
         # Value domain
         value_domains = [
@@ -239,6 +268,10 @@ def generate_compositional_mappings(
             'assessment_concept_name': assessment_name,
             'qualifier_concept_id': qualifier_id,
             'qualifier_concept_name': qualifier_name,
+            'method_qualifier_concept_id': method_qualifier_id,
+            'method_qualifier_concept_name': method_qualifier_name,
+            'temporal_qualifier_concept_id': temporal_qualifier_id,
+            'temporal_qualifier_concept_name': temporal_qualifier_name,
             'value_domain_type': vd,
             'fca_concept_id': concept_id,
             'predicate_id': predicate,
@@ -273,6 +306,21 @@ def generate_atomic_updates(
         concept_id = item_concepts.get(flo_id)
         concept = concept_idx.get(concept_id, {})
         assessments = concept.get('assessments', [])
+        methods = concept.get('methods', [])
+
+        temporals = concept.get('temporals', [])
+
+        # Check for pre-coordinated concept (method or temporal)
+        suggested_id = 0
+        suggested_name = ''
+        if assessments and methods:
+            key = (assessments[0], methods[0])
+            if key in PRE_COORDINATED_METHOD_CONCEPTS:
+                suggested_id, suggested_name = PRE_COORDINATED_METHOD_CONCEPTS[key]
+        if not suggested_id and assessments and temporals:
+            key = (assessments[0], temporals[0])
+            if key in PRE_COORDINATED_TEMPORAL_CONCEPTS:
+                suggested_id, suggested_name = PRE_COORDINATED_TEMPORAL_CONCEPTS[key]
 
         idata = item_data.get(flo_id, {})
         rows.append({
@@ -281,7 +329,10 @@ def generate_atomic_updates(
             'fca_concept_id': concept_id,
             'fca_category': 'A',
             'fca_assessments': ','.join(assessments),
+            'fca_methods': ','.join(methods),
             'omop_domain': concept.get('omop_domain', ''),
+            'suggested_concept_id': suggested_id,
+            'suggested_concept_name': suggested_name,
         })
 
     return rows
@@ -369,7 +420,8 @@ def main(argv: list[str] | None = None) -> None:
         atomic_rows,
         args.output_dir / 'atomic_items.csv',
         ['source_concept_code', 'source_description', 'fca_concept_id',
-         'fca_category', 'fca_assessments', 'omop_domain'],
+         'fca_category', 'fca_assessments', 'fca_methods', 'omop_domain',
+         'suggested_concept_id', 'suggested_concept_name'],
     )
 
     # Unmappable report

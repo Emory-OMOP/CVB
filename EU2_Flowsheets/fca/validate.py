@@ -240,8 +240,8 @@ def compute_ipr(classification: dict) -> dict:
     """
     structural_prefixes = ('template_cat:', 'group_name:')
     expressible_prefixes = (
-        'assessment:', 'body_site:', 'laterality:', 'val_type:',
-        'value_domain:', 'unit:',
+        'assessment:', 'body_site:', 'laterality:', 'method:',
+        'temporal:', 'val_type:', 'value_domain:', 'unit:',
     )
 
     iprs = []

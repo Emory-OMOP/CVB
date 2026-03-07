@@ -102,6 +102,10 @@ def load_compositional(path: Path) -> list[dict]:
             assessment_name = r['assessment_concept_name']
             qualifier_id = int(r['qualifier_concept_id'])
             qualifier_name = r['qualifier_concept_name']
+            method_qualifier_id = int(r.get('method_qualifier_concept_id', 0) or 0)
+            method_qualifier_name = r.get('method_qualifier_concept_name', '')
+            temporal_qualifier_id = int(r.get('temporal_qualifier_concept_id', 0) or 0)
+            temporal_qualifier_name = r.get('temporal_qualifier_concept_name', '')
             predicate = r['predicate_id']
             confidence = float(r['confidence'])
             justification = r['mapping_justification']
@@ -137,6 +141,38 @@ def load_compositional(path: Path) -> list[dict]:
                 row2['author_label'] = 'FCA-pipeline'
                 rows.append(row2)
 
+            # Row 3 (if method qualifier): Has method → method concept
+            if method_qualifier_id and method_qualifier_id != 0:
+                row3 = _empty_row(code, desc)
+                row3['source_domain'] = 'Observation'
+                row3['relationship_id'] = 'Has method'
+                row3['predicate_id'] = predicate
+                row3['confidence'] = confidence
+                row3['target_concept_id'] = method_qualifier_id
+                row3['target_concept_name'] = method_qualifier_name
+                row3['target_vocabulary_id'] = 'SNOMED'
+                row3['target_domain_id'] = 'Observation'
+                row3['mapping_justification'] = justification
+                row3['mapping_tool'] = ''
+                row3['author_label'] = 'FCA-pipeline'
+                rows.append(row3)
+
+            # Row 4 (if temporal qualifier): Has temporal context → temporal concept
+            if temporal_qualifier_id and temporal_qualifier_id != 0:
+                row4 = _empty_row(code, desc)
+                row4['source_domain'] = 'Observation'
+                row4['relationship_id'] = 'Has temporal context'
+                row4['predicate_id'] = predicate
+                row4['confidence'] = confidence
+                row4['target_concept_id'] = temporal_qualifier_id
+                row4['target_concept_name'] = temporal_qualifier_name
+                row4['target_vocabulary_id'] = 'SNOMED'
+                row4['target_domain_id'] = 'Observation'
+                row4['mapping_justification'] = justification
+                row4['mapping_tool'] = ''
+                row4['author_label'] = 'FCA-pipeline'
+                rows.append(row4)
+
     return rows
 
 
@@ -169,14 +205,24 @@ def load_existing(path: Path) -> dict[str, list[dict]]:
     return index
 
 
-def load_atomic_codes(path: Path) -> set[str]:
-    """Load atomic_items.csv and return set of source_concept_codes."""
-    codes = set()
+def load_atomic_codes(path: Path) -> dict[str, dict]:
+    """Load atomic_items.csv and return dict of source_concept_code → info.
+
+    Returns dict mapping code → {suggested_concept_id, suggested_concept_name,
+    source_description, omop_domain}. Items without suggested concepts have
+    suggested_concept_id=0.
+    """
+    items: dict[str, dict] = {}
     with open(path, newline='') as f:
         reader = csv.DictReader(f)
         for r in reader:
-            codes.add(r['source_concept_code'])
-    return codes
+            items[r['source_concept_code']] = {
+                'suggested_concept_id': int(r.get('suggested_concept_id', 0) or 0),
+                'suggested_concept_name': r.get('suggested_concept_name', ''),
+                'source_description': r.get('source_description', ''),
+                'omop_domain': r.get('omop_domain', ''),
+            }
+    return items
 
 
 def build_mapping_csv(
@@ -195,7 +241,7 @@ def build_mapping_csv(
     # Load FCA outputs
     comp_rows = load_compositional(compositional_path)
     unmappable_rows = load_unmappable(unmappable_path)
-    atomic_codes = load_atomic_codes(atomic_path)
+    atomic_items = load_atomic_codes(atomic_path)
 
     # Codes already handled by compositional/unmappable
     handled_codes: set[str] = set()
@@ -211,14 +257,31 @@ def build_mapping_csv(
 
     # Build atomic rows
     atomic_rows: list[dict] = []
-    for code in sorted(atomic_codes):
+    for code in sorted(atomic_items):
         if code in handled_codes:
             continue
         if code in existing_index:
             atomic_rows.extend(existing_index[code])
+        elif atomic_items[code]['suggested_concept_id']:
+            # Pre-coordinated concept from FCA method detection
+            info = atomic_items[code]
+            row = _empty_row(code, info['source_description'])
+            row['source_domain'] = info['omop_domain'] or 'Measurement'
+            row['relationship_id'] = 'Maps to'
+            row['predicate_id'] = 'broadMatch'
+            row['confidence'] = 0.8
+            row['target_concept_id'] = info['suggested_concept_id']
+            row['target_concept_name'] = info['suggested_concept_name']
+            row['target_vocabulary_id'] = 'SNOMED'
+            row['target_domain_id'] = info['omop_domain'] or 'Measurement'
+            row['mapping_justification'] = (
+                f"FCA method-qualified: pre-coordinated SNOMED concept"
+            )
+            row['author_label'] = 'FCA-pipeline'
+            atomic_rows.append(row)
         else:
             # Placeholder — needs manual mapping
-            row = _empty_row(code, '')
+            row = _empty_row(code, atomic_items[code].get('source_description', ''))
             row['predicate_id'] = 'noMatch'
             row['mapping_justification'] = 'FCA atomic: needs manual mapping'
             atomic_rows.append(row)
@@ -268,24 +331,34 @@ def run_tests() -> bool:
 
         # --- Create test FCA CSVs ---
 
-        # compositional_mapping.csv: Breath Sounds Left
+        # compositional_mapping.csv: Breath Sounds Left + Pre-Dialysis BP
         comp_csv = tmp / 'compositional_mapping.csv'
         comp_csv.write_text(
             'source_concept_code,source_description,assessment_concept_id,'
             'assessment_concept_name,qualifier_concept_id,qualifier_concept_name,'
+            'method_qualifier_concept_id,method_qualifier_concept_name,'
+            'temporal_qualifier_concept_id,temporal_qualifier_concept_name,'
             'value_domain_type,fca_concept_id,predicate_id,confidence,'
             'mapping_justification\n'
             '1120100008,Breath Sounds Left,4278456,Breath sounds - finding,'
-            '4300877,left,,C0250.03,broadMatch,0.8,'
+            '4300877,left,0,,0,,'
+            ',C0250.03,broadMatch,0.8,'
             '"FCA concept C0250.03: intent={breath_sounds, left}"\n'
+            '88888,Pre-Dialysis BP,4302666,Body temperature,'
+            '0,,0,,4144786,Before procedure,'
+            ',C0600.01,broadMatch,0.8,'
+            '"FCA concept C0600.01: intent={blood_pressure, pre_dialysis}"\n'
         )
 
-        # atomic_items.csv: Pulse
+        # atomic_items.csv: Pulse (no method) + BP Standing (with method)
         atomic_csv = tmp / 'atomic_items.csv'
         atomic_csv.write_text(
             'source_concept_code,source_description,fca_concept_id,'
-            'fca_category,fca_assessments,omop_domain\n'
-            '8,Pulse,C0418.00,A,spo2,Observation\n'
+            'fca_category,fca_assessments,fca_methods,omop_domain,'
+            'suggested_concept_id,suggested_concept_name\n'
+            '8,Pulse,C0418.00,A,spo2,,Observation,0,\n'
+            '99999,BP Standing,C0500.01,A,blood_pressure,standing,Measurement,'
+            '4060833,Standing blood pressure\n'
         )
 
         # unmappable_items.csv: MEWS
@@ -320,9 +393,12 @@ def run_tests() -> bool:
 
         # --- Assertions ---
 
-        # Total rows: BSL=2 (Maps to + Has finding site), Pulse=1 (from existing), MEWS=1 (noMatch)
-        check('total row count is 4', len(rows) == 4,
-              f'expected 4, got {len(rows)}')
+        # Total rows: BSL=2 (Maps to + Has finding site),
+        # Pre-Dialysis BP=2 (Maps to + Has temporal context),
+        # Pulse=1 (from existing), BP Standing=1 (pre-coordinated),
+        # MEWS=1 (noMatch)
+        check('total row count is 7', len(rows) == 7,
+              f'expected 7, got {len(rows)}')
 
         # Index by code
         by_code: dict[str, list[dict]] = {}
@@ -373,6 +449,37 @@ def run_tests() -> bool:
             check('Pulse author preserved as Joan',
                   pulse[0]['author_label'] == 'Joan',
                   f'got {pulse[0]["author_label"]}')
+
+        # Pre-Dialysis BP: 2 rows (Maps to + Has temporal context)
+        pdbp = by_code.get('88888', [])
+        check('Pre-Dialysis BP has 2 rows', len(pdbp) == 2,
+              f'expected 2, got {len(pdbp)}')
+        pdbp_temporal = [r for r in pdbp if r['relationship_id'] == 'Has temporal context']
+        check('Pre-Dialysis BP has Has temporal context row',
+              len(pdbp_temporal) == 1,
+              f'got {len(pdbp_temporal)}')
+        if pdbp_temporal:
+            check('Pre-Dialysis BP temporal target is 4144786',
+                  str(pdbp_temporal[0]['target_concept_id']) == '4144786',
+                  f'got {pdbp_temporal[0]["target_concept_id"]}')
+
+        # BP Standing: 1 row, pre-coordinated from FCA method detection
+        bps = by_code.get('99999', [])
+        check('BP Standing has 1 row', len(bps) == 1,
+              f'expected 1, got {len(bps)}')
+        if bps:
+            check('BP Standing target is 4060833',
+                  str(bps[0]['target_concept_id']) == '4060833',
+                  f'got {bps[0]["target_concept_id"]}')
+            check('BP Standing relationship is Maps to',
+                  bps[0]['relationship_id'] == 'Maps to',
+                  f'got {bps[0]["relationship_id"]}')
+            check('BP Standing predicate is broadMatch',
+                  bps[0]['predicate_id'] == 'broadMatch',
+                  f'got {bps[0]["predicate_id"]}')
+            check('BP Standing author is FCA-pipeline',
+                  bps[0]['author_label'] == 'FCA-pipeline',
+                  f'got {bps[0]["author_label"]}')
 
         # MEWS: 1 row, noMatch (from unmappable, NOT from existing)
         mews = by_code.get('14950', [])
