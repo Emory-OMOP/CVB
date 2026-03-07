@@ -12,23 +12,23 @@ This pipeline uses a branch of mathematics called **Formal Concept Analysis (FCA
 
 Think of it like sorting a giant pile of LEGO pieces. Instead of examining each piece individually, you dump them onto a grid, check off their properties (color, size, shape), and let the math find which pieces naturally belong together.
 
-![Pipeline overview](diagrams/pipeline.svg)
+<img src="diagrams/pipeline.svg" width="350">
 
 ## The key insight
 
 Many flowsheet items are **compositional** — they bundle multiple clinical ideas into one row:
 
-![Compositional mapping](diagrams/compositional.svg)
+<img src="diagrams/compositional.svg" width="420">
 
 FCA discovers these compositions automatically by finding items that share the same properties:
 
-![FCA family discovery](diagrams/family.svg)
+<img src="diagrams/family.svg" width="420">
 
 All six items share the same clinical assessment (edema) with the same value options (None/Trace/1+/2+/3+/4+). They differ only in body site. So a human reviewer approves the **family once**, not each item separately.
 
 ## What each file does
 
-![Module dependencies](diagrams/modules.svg)
+<img src="diagrams/modules.svg" width="490">
 
 ## The three categories
 
