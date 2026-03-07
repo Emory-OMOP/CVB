@@ -12,119 +12,23 @@ This pipeline uses a branch of mathematics called **Formal Concept Analysis (FCA
 
 Think of it like sorting a giant pile of LEGO pieces. Instead of examining each piece individually, you dump them onto a grid, check off their properties (color, size, shape), and let the math find which pieces naturally belong together.
 
-```mermaid
-flowchart TD
-    A["📋 Step 1: Export Data\n162K template rows + 311K dropdown values\nfrom Epic Clarity database"] --> B
-
-    B["🔲 Step 2: Build the Grid\nFor each of 25K items, check off ~300\nbinary properties like body site,\nleft/right, numeric, severity scale"] --> C
-
-    C["🔍 Step 3: Find Natural Groups\nMath scans the grid for 'maximal rectangles'\n= largest groups sharing identical properties\nDone in 2 passes: rough then fine"] --> D
-
-    D["🏷️ Step 4: Label Each Group\nA = Atomic (simple 1:1 match)\nB = Compositional (needs qualifier)\nC = Unmappable (not clinical)"] --> E
-
-    E["📄 Step 5: Generate Translations\nAtomic → direct OMOP code\nCompositional → OMOP code + body site qualifier\nUnmappable → documented reason"] --> F
-
-    F["✅ Step 6: Validate\nEvery item classified?\nNo items missed?\nMath checks out?"]
-```
+![Pipeline overview](diagrams/pipeline.svg)
 
 ## The key insight
 
 Many flowsheet items are **compositional** — they bundle multiple clinical ideas into one row:
 
-```mermaid
-graph LR
-    subgraph "What the nurse sees (1 row)"
-        A["RLE Edema"]
-    end
-
-    subgraph "What it actually means (2 concepts)"
-        B["Edema\n(the observation)"]
-        C["Right Lower Extremity\n(the body location)"]
-    end
-
-    A --> B
-    A --> C
-```
+![Compositional mapping](diagrams/compositional.svg)
 
 FCA discovers these compositions automatically by finding items that share the same properties:
 
-```mermaid
-graph TD
-    subgraph "FCA finds this family"
-        R["RLE Edema"]
-        L["LLE Edema"]
-        RU["RUE Edema"]
-        LU["LUE Edema"]
-        F["Facial Edema"]
-        G["Generalized Edema"]
-    end
-
-    subgraph "Shared properties (the 'intent')"
-        P1["assessment: edema"]
-        P2["val_type: custom_list"]
-        P3["value_domain: ordinal_severity"]
-    end
-
-    R --- P1
-    L --- P1
-    RU --- P1
-    LU --- P1
-    F --- P1
-    G --- P1
-```
+![FCA family discovery](diagrams/family.svg)
 
 All six items share the same clinical assessment (edema) with the same value options (None/Trace/1+/2+/3+/4+). They differ only in body site. So a human reviewer approves the **family once**, not each item separately.
 
 ## What each file does
 
-```mermaid
-flowchart LR
-    subgraph "Input CSVs"
-        M["fca_master_extract.csv\n162K rows"]
-        CL["fca_custom_lists.csv\n311K rows"]
-    end
-
-    subgraph "Python Modules"
-        direction TB
-        CON["constants.py\nDictionaries for\nbody sites, assessments,\nOMOP concept IDs"]
-        NP["name_parser.py\nReads item names\nlike 'RLE Edema'\nand extracts meaning"]
-        TC["template_classifier.py\nSorts templates into\ncategories like\n'cardiology' or 'OB'"]
-        VD["value_domain_classifier.py\nLooks at dropdown options\nto figure out the\nvalue type (severity, yes/no, etc.)"]
-        BC["build_context.py\nCombines everything\ninto the big grid\n(the 'formal context')"]
-        CL2["compute_lattice.py\nThe core math —\nfinds all natural\nfamilies in the grid"]
-        CC["classify_concepts.py\nLabels each family\nas A, B, or C"]
-        GM["generate_mappings.py\nWrites the actual\ntranslation files"]
-        VA["validate.py\nChecks everything\nfor correctness"]
-    end
-
-    subgraph "Outputs"
-        CTX["fca_context.json\nThe grid"]
-        LAT["fca_lattice.json\nThe families"]
-        CMP["compositional_mapping.csv\nTranslations with qualifiers"]
-        ATM["atomic_items.csv\nSimple 1:1 translations"]
-        UNM["unmappable_items.csv\nItems that can't be translated"]
-    end
-
-    M --> BC
-    CL --> BC
-    CON --> NP
-    CON --> TC
-    CON --> VD
-    NP --> BC
-    TC --> BC
-    VD --> BC
-    BC --> CTX
-    CTX --> CL2
-    CL2 --> LAT
-    LAT --> CC
-    CC --> GM
-    GM --> CMP
-    GM --> ATM
-    GM --> UNM
-    CTX --> VA
-    LAT --> VA
-    CC --> VA
-```
+![Module dependencies](diagrams/modules.svg)
 
 ## The three categories
 

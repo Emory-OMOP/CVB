@@ -1,0 +1,7 @@
+flowchart TD
+    A["<b>Step 1: Export Data</b><br/>162K template rows + 311K dropdown values from Epic Clarity"] --> B
+    B["<b>Step 2: Build the Grid</b><br/>For each of 25K items, check off ~300 binary properties<br/>(body site, laterality, numeric, severity scale)"] --> C
+    C["<b>Step 3: Find Natural Groups</b><br/>Scan the grid for maximal rectangles — largest groups<br/>sharing identical properties (2 passes: rough then fine)"] --> D
+    D["<b>Step 4: Label Each Group</b><br/>A = Atomic (simple 1:1 match)<br/>B = Compositional (needs qualifier)<br/>C = Unmappable (not clinical)"] --> E
+    E["<b>Step 5: Generate Translations</b><br/>Atomic → direct OMOP code<br/>Compositional → OMOP code + body site qualifier<br/>Unmappable → documented reason"] --> F
+    F["<b>Step 6: Validate</b><br/>Every item classified? No items missed? Math checks out?"]

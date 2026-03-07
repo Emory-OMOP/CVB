@@ -1,0 +1,22 @@
+graph TD
+    subgraph family ["FCA finds this family"]
+        R["RLE Edema"]
+        L["LLE Edema"]
+        RU["RUE Edema"]
+        LU["LUE Edema"]
+        F["Facial Edema"]
+        G["Generalized Edema"]
+    end
+
+    subgraph props ["Shared properties (the 'intent')"]
+        P1["assessment: edema"]
+        P2["val_type: custom_list"]
+        P3["value_domain: ordinal_severity"]
+    end
+
+    R --- P1
+    L --- P1
+    RU --- P1
+    LU --- P1
+    F --- P1
+    G --- P1

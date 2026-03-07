@@ -1,0 +1,12 @@
+graph LR
+    subgraph src ["What the nurse sees (1 row)"]
+        A["RLE Edema"]
+    end
+
+    subgraph omop ["What it actually means (2 concepts)"]
+        B["Edema<br/>(the observation)"]
+        C["Right Lower Extremity<br/>(the body location)"]
+    end
+
+    A --> B
+    A --> C

@@ -1,0 +1,46 @@
+flowchart LR
+    subgraph inputs ["Input CSVs"]
+        M["fca_master_extract.csv<br/>162K rows"]
+        CL["fca_custom_lists.csv<br/>311K rows"]
+    end
+
+    subgraph parsers ["Python Modules"]
+        direction TB
+        CON["constants.py<br/>Body sites, assessments, OMOP concept IDs"]
+        NP["name_parser.py<br/>Extract meaning from item names"]
+        TC["template_classifier.py<br/>Categorize templates"]
+        VD["value_domain_classifier.py<br/>Classify dropdown value types"]
+        BC["build_context.py<br/>Combine into the formal context grid"]
+        CL2["compute_lattice.py<br/>Find all natural families"]
+        CC["classify_concepts.py<br/>Label each family A, B, or C"]
+        GM["generate_mappings.py<br/>Write translation CSVs"]
+        VA["validate.py<br/>Check correctness"]
+    end
+
+    subgraph outputs ["Outputs"]
+        CTX["fca_context.json"]
+        LAT["fca_lattice.json"]
+        CMP["compositional_mapping.csv"]
+        ATM["atomic_items.csv"]
+        UNM["unmappable_items.csv"]
+    end
+
+    M --> BC
+    CL --> BC
+    CON --> NP
+    CON --> TC
+    CON --> VD
+    NP --> BC
+    TC --> BC
+    VD --> BC
+    BC --> CTX
+    CTX --> CL2
+    CL2 --> LAT
+    LAT --> CC
+    CC --> GM
+    GM --> CMP
+    GM --> ATM
+    GM --> UNM
+    CTX --> VA
+    LAT --> VA
+    CC --> VA
