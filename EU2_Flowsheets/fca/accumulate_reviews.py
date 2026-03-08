@@ -51,6 +51,10 @@ HEADER = [
 def run_subagents(agent_dir, prefix, count, script_dir=None):
     """Execute each sub-agent Python script. Returns list of failures."""
     script_dir = script_dir or agent_dir
+    # Ensure subagent_template is importable even when scripts live outside fca/
+    fca_dir = os.path.dirname(os.path.abspath(__file__))
+    env = os.environ.copy()
+    env["PYTHONPATH"] = fca_dir + os.pathsep + env.get("PYTHONPATH", "")
     failures = []
     for i in range(1, count + 1):
         script = os.path.join(script_dir, f"{prefix}{i}.py")
@@ -62,6 +66,7 @@ def run_subagents(agent_dir, prefix, count, script_dir=None):
         result = subprocess.run(
             [sys.executable, script],
             capture_output=True, text=True,
+            env=env,
         )
         if result.returncode != 0:
             print("FAILED")
@@ -144,7 +149,7 @@ def qa_check(rows):
             f"{bad_cols[:5]}"
         )
 
-    # 7. Check for codes that already exist in clinical_review.csv
+    # 7. Check for codes that already exist in clinical_review.csv (BLOCKING)
     if os.path.exists(CLINICAL_REVIEW_CSV):
         with open(CLINICAL_REVIEW_CSV, newline="") as f:
             reader = csv.reader(f)
@@ -153,7 +158,7 @@ def qa_check(rows):
         overlap = set(codes) & existing_codes
         if overlap:
             issues.append(
-                f"Source codes already in clinical_review.csv ({len(overlap)}): "
+                f"BLOCKING: Source codes already in clinical_review.csv ({len(overlap)}): "
                 f"{sorted(overlap)[:10]}"
             )
 
@@ -223,9 +228,20 @@ def main():
     # Step 2: Accumulate
     if not (args.skip_run and args.push):
         print("=== Accumulating ===")
-        rows = accumulate(args.dir, args.prefix, args.count, args.output)
+        accumulate(args.dir, args.prefix, args.count, args.output)
 
-        # Step 3: QA
+    # Step 3: QA (always run before push)
+    if args.push or not (args.skip_run and args.push):
+        # Load accumulated CSV for QA
+        if os.path.exists(args.output):
+            with open(args.output, newline="") as f:
+                reader = csv.reader(f)
+                next(reader, None)  # skip header
+                rows = list(reader)
+        else:
+            print(f"  ERROR: Accumulated CSV not found: {args.output}")
+            sys.exit(1)
+
         print("\n=== QA Checks ===")
         issues = qa_check(rows)
         if issues:

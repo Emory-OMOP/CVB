@@ -11,7 +11,9 @@ Compositional items (B) produce multi-row entries:
 Atomic items (A) are preserved from the existing mapping.csv when available,
 otherwise emitted as noMatch placeholders for manual mapping.
 
-Unmappable items (C) are emitted as noMatch.
+Unmappable items (C) are checked against clinical_review.csv:
+  - decision='map': rescued with OMOP mapping from clinical review
+  - decision='skip' or absent: emitted as noMatch
 
 Usage:
     python -m fca.build_mapping_csv \
@@ -19,6 +21,7 @@ Usage:
         --atomic Mappings/atomic_items.csv \
         --unmappable Mappings/unmappable_items.csv \
         --existing Mappings/mapping.csv \
+        --clinical-review Mappings/clinical_review.csv \
         --output Mappings/mapping.csv
 
     # Self-test:
@@ -188,6 +191,67 @@ def load_unmappable(path: Path) -> list[dict]:
     return rows
 
 
+def load_clinical_review(path: Path) -> dict[str, list[dict]]:
+    """Load clinical_review.csv and convert 'map' decisions to CVB rows.
+
+    Returns dict mapping source_concept_code → list of CVB rows.
+    Items with decision='skip' are omitted (they stay as noMatch).
+    Items with qualifiers produce multi-row entries.
+    """
+    index: dict[str, list[dict]] = {}
+    with open(path, newline='') as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            if r['decision'] != 'map':
+                continue
+
+            code = r['source_concept_code']
+            desc = r['source_description']
+
+            # Row 1: Maps to → target concept
+            row1 = _empty_row(code, desc)
+            row1['source_domain'] = r.get('domain_id', 'Observation') or 'Observation'
+            row1['relationship_id'] = 'Maps to'
+            row1['predicate_id'] = r.get('predicate_id', 'broadMatch')
+            row1['confidence'] = float(r.get('confidence', 0) or 0)
+            row1['target_concept_id'] = int(r.get('target_concept_id', 0) or 0)
+            row1['target_concept_name'] = r.get('target_concept_name', '')
+            row1['target_vocabulary_id'] = r.get('target_vocabulary_id', '')
+            row1['target_domain_id'] = r.get('domain_id', 'Observation') or 'Observation'
+            row1['mapping_justification'] = r.get('mapping_justification', '')
+            row1['mapping_tool'] = r.get('mapping_tool', '')
+            row1['author_label'] = 'clinical-review'
+            row1['review_date'] = r.get('review_date', '')
+            row1['reviewer_name'] = r.get('reviewer_name', '')
+            row1['status'] = 'pending'
+
+            rows = [row1]
+
+            # Row 2 (if qualifier): Has finding site → qualifier concept
+            qid = int(r.get('qualifier_concept_id', 0) or 0)
+            if qid:
+                row2 = _empty_row(code, desc)
+                row2['source_domain'] = r.get('domain_id', 'Observation') or 'Observation'
+                row2['relationship_id'] = r.get('qualifier_relationship_id', 'Has finding site') or 'Has finding site'
+                row2['predicate_id'] = r.get('predicate_id', 'broadMatch')
+                row2['confidence'] = float(r.get('confidence', 0) or 0)
+                row2['target_concept_id'] = qid
+                row2['target_concept_name'] = r.get('qualifier_concept_name', '')
+                row2['target_vocabulary_id'] = 'SNOMED'
+                row2['target_domain_id'] = r.get('domain_id', 'Observation') or 'Observation'
+                row2['mapping_justification'] = r.get('mapping_justification', '')
+                row2['mapping_tool'] = r.get('mapping_tool', '')
+                row2['author_label'] = 'clinical-review'
+                row2['review_date'] = r.get('review_date', '')
+                row2['reviewer_name'] = r.get('reviewer_name', '')
+                row2['status'] = 'pending'
+                rows.append(row2)
+
+            index[code] = rows
+
+    return index
+
+
 def load_existing(path: Path) -> dict[str, list[dict]]:
     """Load existing mapping.csv, indexed by source_concept_code.
 
@@ -230,18 +294,25 @@ def build_mapping_csv(
     atomic_path: Path,
     unmappable_path: Path,
     existing_path: Path | None = None,
+    clinical_review_path: Path | None = None,
 ) -> list[dict]:
     """Build the merged mapping.csv rows.
 
     Strategy:
     - Compositional (B): multi-row broadMatch from FCA (replaces any existing)
-    - Unmappable (C): noMatch
+    - Unmappable (C) with clinical review 'map': rescued mapping from review
+    - Unmappable (C) without review or 'skip': noMatch
     - Atomic (A): preserve from existing mapping.csv if available, else noMatch
     """
     # Load FCA outputs
     comp_rows = load_compositional(compositional_path)
     unmappable_rows = load_unmappable(unmappable_path)
     atomic_items = load_atomic_codes(atomic_path)
+
+    # Load clinical review (rescued C items)
+    review_index: dict[str, list[dict]] = {}
+    if clinical_review_path and clinical_review_path.exists():
+        review_index = load_clinical_review(clinical_review_path)
 
     # Codes already handled by compositional/unmappable
     handled_codes: set[str] = set()
@@ -286,8 +357,18 @@ def build_mapping_csv(
             row['mapping_justification'] = 'FCA atomic: needs manual mapping'
             atomic_rows.append(row)
 
-    # Combine: compositional + atomic + unmappable
-    all_rows = comp_rows + atomic_rows + unmappable_rows
+    # Replace unmappable noMatch rows with clinical review mappings where available
+    final_unmappable: list[dict] = []
+    rescued_rows: list[dict] = []
+    for r in unmappable_rows:
+        code = r['source_concept_code']
+        if code in review_index:
+            rescued_rows.extend(review_index[code])
+        else:
+            final_unmappable.append(r)
+
+    # Combine: compositional + atomic + rescued + remaining unmappable
+    all_rows = comp_rows + atomic_rows + rescued_rows + final_unmappable
 
     # Sort by source_concept_code for deterministic output
     all_rows.sort(key=lambda r: r['source_concept_code'])
@@ -370,6 +451,27 @@ def run_tests() -> bool:
             'no_clinical_attributes,\n'
         )
 
+        # clinical_review.csv: MEWS rescued with a mapping
+        clinical_csv = tmp / 'clinical_review.csv'
+        clinical_csv.write_text(
+            'source_concept_code,source_description,decision,'
+            'target_concept_id,target_concept_name,'
+            'target_vocabulary_id,target_concept_code,'
+            'predicate_id,confidence,domain_id,'
+            'qualifier_concept_id,qualifier_concept_name,'
+            'qualifier_relationship_id,mapping_justification,'
+            'needs_source_data,mapping_tool,reviewer_name,'
+            'reviewer_type,review_date\n'
+            '14950,MEWS Difference from Baseline,map,'
+            '40484261,Pediatric early warning score scale,'
+            'SNOMED,763437008,'
+            'broadMatch,0.7,Measurement,'
+            ',,,'
+            'MEWS baseline difference mapped to early warning score,'
+            'no,claude-opus-4-6+ohdsi-vocab-mcp,claude-opus-4-6,'
+            'llm,2026-03-08\n'
+        )
+
         # existing mapping.csv: has Pulse with exactMatch
         existing_csv = tmp / 'existing_mapping.csv'
         existing_csv.write_text(
@@ -389,6 +491,7 @@ def run_tests() -> bool:
             atomic_path=atomic_csv,
             unmappable_path=unmappable_csv,
             existing_path=existing_csv,
+            clinical_review_path=clinical_csv,
         )
 
         # --- Assertions ---
@@ -481,14 +584,20 @@ def run_tests() -> bool:
                   bps[0]['author_label'] == 'FCA-pipeline',
                   f'got {bps[0]["author_label"]}')
 
-        # MEWS: 1 row, noMatch (from unmappable, NOT from existing)
+        # MEWS: 1 row, rescued by clinical review (broadMatch, not noMatch)
         mews = by_code.get('14950', [])
         check('MEWS has 1 row', len(mews) == 1,
               f'expected 1, got {len(mews)}')
         if mews:
-            check('MEWS predicate is noMatch',
-                  mews[0]['predicate_id'] == 'noMatch',
+            check('MEWS predicate is broadMatch (rescued)',
+                  mews[0]['predicate_id'] == 'broadMatch',
                   f'got {mews[0]["predicate_id"]}')
+            check('MEWS target is 40484261',
+                  str(mews[0]['target_concept_id']) == '40484261',
+                  f'got {mews[0]["target_concept_id"]}')
+            check('MEWS author is clinical-review',
+                  mews[0]['author_label'] == 'clinical-review',
+                  f'got {mews[0]["author_label"]}')
 
         # --- Write output and verify CSV round-trip ---
         out_csv = tmp / 'output_mapping.csv'
@@ -535,6 +644,10 @@ def main(argv: list[str] | None = None) -> None:
         help='Path to existing mapping.csv (for atomic item mappings)'
     )
     parser.add_argument(
+        '--clinical-review', type=Path, default=None,
+        help='Path to clinical_review.csv (rescued C items)'
+    )
+    parser.add_argument(
         '--output', type=Path,
         help='Output path for merged mapping.csv'
     )
@@ -555,6 +668,7 @@ def main(argv: list[str] | None = None) -> None:
         atomic_path=args.atomic,
         unmappable_path=args.unmappable,
         existing_path=args.existing,
+        clinical_review_path=args.clinical_review,
     )
 
     write_mapping_csv(rows, args.output)

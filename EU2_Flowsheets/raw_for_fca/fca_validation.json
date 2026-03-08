@@ -20,7 +20,7 @@
     {
       "name": "partition_coverage",
       "passed": true,
-      "message": "A=16204, B=1541, C=38192, total=55937",
+      "message": "A=16179, B=1566, C=38192, total=55937",
       "details": {}
     },
     {
@@ -32,17 +32,17 @@
     {
       "name": "assessment_coverage",
       "passed": true,
-      "message": "517/517 compositional concepts have assessment mappings (100.0%)",
+      "message": "615/615 compositional concepts have assessment mappings (100.0%)",
       "details": {}
     },
     {
       "name": "information_preservation",
       "passed": true,
-      "message": "Mean IPR=0.9485 (322/1944 below 0.85)",
+      "message": "Mean IPR=0.9482 (375/2229 below 0.85)",
       "details": {
-        "mean_ipr": 0.9485,
-        "n_concepts": 1944,
-        "below_085": 322
+        "mean_ipr": 0.9482,
+        "n_concepts": 2229,
+        "below_085": 375
       }
     }
   ],

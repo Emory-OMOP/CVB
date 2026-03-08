@@ -12,6 +12,8 @@ No prior context is needed — the prompt is self-contained.
    - If not, update them (see "How to find START_LINE" below)
 2. **Clean old artifacts**: `bash EU2_Flowsheets/fca/cleanup_subagents.sh`
 
+# Kickoff Section
+
 ## Kickoff Prompt
 
 ```
@@ -29,8 +31,10 @@ Architecture (3 tiers):
   - PLANNING AGENT (1): reads the 1000-line CSV batch + greps prior mappings.
     Returns a concise plan: 10-agent split with line ranges, segment notes, and
     reusable concept tuples. Runs in its own context window.
-  - REVIEW AGENTS (10): each reads its 100-line slice, reasons clinically, looks
-    up OMOP concepts, and writes a Python script to .private/subagents/py/.
+  - REVIEW AGENTS (10): each reads its 100-line PRIMARY slice plus ±50 lines of
+    CONTEXT (previous/next rows for template continuity), reasons clinically,
+    looks up OMOP concepts with QUALIFIER concepts where appropriate (body site,
+    laterality), and writes a Python script to .private/subagents/py/.
 
 DO NOT read the enriched CSV yourself — that's the planner's job.
 DO NOT rewrite sub-agent scripts yourself. If an agent fails, note the failure
@@ -88,6 +92,18 @@ read the batch data and return a concise plan for 10 review agents.
 ...
 | 10 | START+900-END | [1-line characterization] |
 
+Note: each agent will also read ±50 CONTEXT lines around their primary range
+for template continuity. Flag any agent boundaries that fall mid-template — the
+orchestrator should mention this when launching those agents.
+
+## Template Boundary Warnings
+- [e.g., "Agent 3/4 boundary at line X splits REHAB OP EVAL template"]
+- [If none, say "No mid-template splits detected"]
+
+## Items Needing Qualifiers
+- [Flag clusters where body site / laterality qualifiers are needed]
+- [e.g., "Lines X-Y: bilateral joint ROM items need L/R qualifier concepts"]
+
 ## Gotchas
 - [Any patterns from prior sessions relevant to this batch]
 - [Items that look tricky or need special attention]
@@ -117,15 +133,37 @@ and write a Python script that maps or skips each one.
 
 ## Your line range
 - Enriched CSV: EU2_Flowsheets/Mappings/unmappable_enriched.csv
-- Lines START to END (1-indexed, line 1 = header)
+- PRIMARY lines: START to END (1-indexed, line 1 = header) — you MAP/SKIP these
+- CONTEXT lines: read 50 lines BEFORE (offset=START-51, limit=50) and 50 lines
+  AFTER (offset=END, limit=50) for template continuity. Do NOT map/skip context
+  lines — they belong to adjacent agents. Use them to understand what template
+  or instrument a group of items belongs to.
 
 ## Instructions
 
-1. Read your 100 lines from the enriched CSV (offset=START-1, limit=100)
-2. For each item, decide: map (clinical value) or skip (admin/non-clinical)
-3. For items to map, search OMOP concepts using search_concepts tool
-4. Write your script to .private/subagents/py/clinical_review__subagent_N.py
+1. Read your CONTEXT lines first (before + after), then your 100 PRIMARY lines
+2. Check the `template_names` and `group_names` columns — items from the same
+   template/group should be mapped consistently. If your primary range starts or
+   ends mid-template, use the context lines to understand the full instrument.
+3. For each PRIMARY item, decide: map (clinical value) or skip (admin/non-clinical)
+4. For items to map, search OMOP concepts using search_concepts tool
+5. **Add qualifiers** when the item has a body site, laterality, or method:
+   - Body site: e.g., "Left knee ROM" → concept=ROM + qualifier=(4135969, "Knee", "Has finding site")
+   - Laterality: e.g., "RUE strength" → concept=Muscle strength + qualifier=(4180344, "Right upper extremity", "Has finding site")
+   - Method: e.g., "BP cuff" → concept=BP + qualifier=(4322632, "Blood pressure cuff", "Has method")
+   - Use search_concepts to find the right qualifier concept_id — don't guess
+6. Write your script to .private/subagents/py/clinical_review__subagent_N.py
    IMPORTANT: Write to .private/subagents/py/ — NOT /tmp/claude/ or anywhere else.
+
+## Common qualifier concepts (search for more specific ones as needed)
+- Right (generic): (4080761, "Right", "Has laterality")
+- Left (generic): (4300877, "Left", "Has laterality")
+- Right upper extremity: (4180344, "Entire right upper extremity", "Has finding site")
+- Left upper extremity: (4180345, "Entire left upper extremity", "Has finding site")
+- Right lower extremity: (4179565, "Entire right lower extremity", "Has finding site")
+- Left lower extremity: (4180483, "Entire left lower extremity", "Has finding site")
+- Face: (4232301, "Face structure", "Has finding site")
+- Oral: (4132161, "Oral", "Has method")
 
 ## Reusable concepts from prior sessions
 [PASTE the planning agent's Reusable Concepts section here, e.g.:]
@@ -179,8 +217,15 @@ from subagent_template import ReviewBuilder
 
 rb = ReviewBuilder(agent_num=N, start_line=START, end_line=END)
 
+# Concept tuple: (tcid, "concept_name", "VOCAB", "code", "pred", conf, "Domain")
+# Qualifier tuple (optional): (qcid, "qualifier_name", "qualifier_rel")
+
 MAP_ITEMS = {
-    "source_code": ((tcid, "concept_name", "VOCAB", "code", "pred", conf, "Domain"), "Clinical reasoning justification"),
+    # Without qualifier:
+    "source_code": ((tcid, "concept_name", "VOCAB", "code", "pred", conf, "Domain"), "justification"),
+    # With qualifier (body site, laterality, or method):
+    "source_code": ((tcid, "concept_name", "VOCAB", "code", "pred", conf, "Domain"), "justification",
+                    (qcid, "qualifier_name", "qualifier_rel")),
 }
 
 SKIP_REASONS = {
@@ -189,8 +234,13 @@ SKIP_REASONS = {
 
 for code, desc, row in rb.source_items():
     if code in MAP_ITEMS:
-        concept, justification = MAP_ITEMS[code]
-        rb.map_row(code, desc, *concept, justification)
+        entry = MAP_ITEMS[code]
+        concept, justification = entry[0], entry[1]
+        if len(entry) > 2 and entry[2]:
+            qcid, qcname, qrel = entry[2]
+            rb.map_row(code, desc, *concept, justification, qcid, qcname, qrel)
+        else:
+            rb.map_row(code, desc, *concept, justification)
     elif code in SKIP_REASONS:
         rb.skip(code, desc, SKIP_REASONS[code])
     else:
@@ -210,6 +260,7 @@ Rules:
 - Include clinical reasoning in justification (not just "mapped to X")
 - For skip-heavy segments, a single default reason is fine
 - Search search_concepts for NEW instruments not in the reusable list above
+- Add qualifier tuples for items with body site, laterality, or method context
 - Always include the unhandled check at the end
 ```
 
@@ -217,37 +268,29 @@ Rules:
 
 After all 10 agents complete, proceed to Step 3.
 
-## Step 3 — Ask me to run QA
+## Step 3 — Finalize (single command)
 
 Tell me to run:
 ```bash
-cd /Users/danielsmith/git_repos/org__Emory-OMOP/CVB/EU2_Flowsheets && uv run python fca/accumulate_reviews.py
+cd /Users/danielsmith/git_repos/org__Emory-OMOP/CVB && bash EU2_Flowsheets/fca/finalize_batch.sh
 ```
 
-Review the QA output. If issues found, note them and ask me to re-run after fixes.
+This runs the full pipeline in one shot:
+1. Accumulates sub-agent CSVs + QA checks (blocks on failure)
+2. Pushes accumulated rows to clinical_review.csv
+3. Validates source codes against enriched CSV
+4. Auto-fixes issues (merged fields, off-by-one codes, descriptions)
+5. Re-validates to confirm clean state
 
-## Step 4 — Push
+If it exits 0, move to Step 4. If it exits 1, review the remaining issues
+printed to stdout — these need manual attention before proceeding.
 
-If QA passes, tell me to run:
+For a preview without modifying clinical_review.csv:
 ```bash
-cd /Users/danielsmith/git_repos/org__Emory-OMOP/CVB/EU2_Flowsheets && uv run python fca/accumulate_reviews.py --skip-run --push
+bash EU2_Flowsheets/fca/finalize_batch.sh --dry-run
 ```
 
-## Step 5 — Validate
-
-Tell me to run:
-```bash
-cd /Users/danielsmith/git_repos/org__Emory-OMOP/CVB/EU2_Flowsheets && uv run python fca/validate_review_codes.py
-```
-
-If NEW issues found (check line numbers — issues at lines <current batch are pre-existing), fix with:
-```bash
-uv run python fca/fix_clinical_review.py         # dry run first
-uv run python fca/fix_clinical_review.py --apply  # then apply
-uv run python fca/validate_review_codes.py        # re-validate
-```
-
-## Step 6 — Update handoff + config
+## Step 4 — Update handoff + config
 
 1. Update `.private/handoff_clinical-reasoning-pass.md` with session results:
    - Update progress count at top
@@ -259,32 +302,46 @@ Key files:
 - Output: `EU2_Flowsheets/Mappings/clinical_review.csv`
 - Config: `EU2_Flowsheets/fca/subagent_config.py`
 - Template: `EU2_Flowsheets/fca/subagent_template.py`
-- Accumulator: `EU2_Flowsheets/fca/accumulate_reviews.py`
-- Validator: `EU2_Flowsheets/fca/validate_review_codes.py`
-- Fixer: `EU2_Flowsheets/fca/fix_clinical_review.py`
+- Finalizer: `EU2_Flowsheets/fca/finalize_batch.sh` (accumulate + push + validate + fix)
 - Handoff: `.private/handoff_clinical-reasoning-pass.md`
 ```
 
-## How to find START_LINE
+## Recovery Sequence (as of 2026-03-07)
 
-The enriched CSV line number = items reviewed + 2 (line 1 is header, line 2 is first data row).
+`source_items()` now auto-skips codes already in clinical_review.csv, so re-processing
+ranges that partially overlap with existing data is safe.
 
-| After session | Items reviewed | Next START_LINE | BATCH_END_LINE |
-|--------------|---------------|-----------------|----------------|
-| Session 15   | 9,231         | 9,294           | 10,293         |
-| Session 16   | 10,231        | 10,294          | 11,293         |
-| Session 17   | 11,231        | 11,294          | 12,293         |
-| Session 18   | 12,231        | 12,294          | 13,293         |
-| Session 19   | 13,231        | 13,294          | 14,293         |
-| Session 20   | 14,231        | 14,294          | 15,293         |
-| Session 21   | 15,231        | 15,294          | 16,293         |
-| Session 22   | 16,231        | 16,294          | 17,293         |
-| Session 23   | 17,231        | 17,294          | 18,293         |
-| Session 24   | 18,231        | 18,294          | 19,293         |
-| Session 25   | 19,231        | 19,294          | 20,293         |
-| Session 26   | 20,231        | 20,294          | 21,293         |
+### Step 1: Gap fill (do this FIRST)
+```
+BATCH_START_LINE = 6233
+BATCH_END_LINE = 8293
+SUBAGENT_COUNT = 1
+```
+Single sub-agent, 61 unreviewed items after skip filter. Finalize normally.
 
-(Add 1000 per session, +2 for header offset)
+### Step 2: Re-run lost batches (8 standard batches)
+After gap fill, process these in order. Set `SUBAGENT_COUNT = 10` for all.
+
+| Session | START_LINE | END_LINE | Was session | Notes |
+|---------|-----------|----------|-------------|-------|
+| R1      | 17294     | 18293    | 24          | CDIP-58, NPI-Q, UHDRS, CI QoL, audiological |
+| R2      | 18294     | 19293    | 25          | Allergy patch testing (~400), QIDS, DAS-28, pain |
+| R3      | 19294     | 20293    | 26          | WHOQOL-BREF, WHYMPI, SCOPA-AUT, DASI, HCT comorbidity |
+| R4      | 20294     | 21293    | 27          | FOSQ-10, IPSS, HJHS, hemophilia, sleep, psychiatry |
+| R5      | 21294     | 22293    | 28          | EORTC, urodynamics, PFIQ-7, PISQ-12, PFDI-20, BH instruments |
+| R6      | 22294     | 23293    | 29          | QOLIE-31, allergy patch, COMPASS-31, gene therapy, Long COVID |
+| R7      | 23294     | 24293    | 30          | Rehab goals (low yield), ED CPG checklists |
+| R8      | 24294     | 25293    | 31          | Finnegan NAS, APACHE, nutrition, ICU monitoring |
+
+### Step 3: Resume normal processing
+After R8, continue from 26294 (25294-26293 already ingested).
+
+| Session | START_LINE | END_LINE |
+|---------|-----------|----------|
+| Next    | 26294     | 27293    |
+| +1      | 27294     | 28293    |
+| ...     | +1000     | +1000    |
+| Last    | 37294     | 38193    |
 
 ## After each session
 

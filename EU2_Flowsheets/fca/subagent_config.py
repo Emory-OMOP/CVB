@@ -24,6 +24,7 @@ SUBAGENT_PREFIX = "clinical_review__subagent_"
 SUBAGENT_COUNT = 10
 
 # Current batch line range (enriched CSV, 1-indexed with header on line 1)
+# Recovery batch R1 (was session 24). Lines 17294-18293.
 BATCH_START_LINE = 17294
 BATCH_END_LINE = 18293
 

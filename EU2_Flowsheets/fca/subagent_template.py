@@ -31,14 +31,15 @@ ENRICHED_CSV = MAPPINGS_DIR / "unmappable_enriched.csv"
 TOOL = "claude-opus-4-6+ohdsi-vocab-mcp"
 REVIEWER = "claude-opus-4-6"
 RTYPE = "llm"
-RDATE = "2026-03-06"
+RDATE = "2026-03-08"
 
 
 class ReviewBuilder:
     """Builds clinical review rows from a slice of the enriched CSV."""
 
     def __init__(self, agent_num, start_line, end_line,
-                 output_dir=None, prefix="clinical_review__subagent_"):
+                 output_dir=None, prefix="clinical_review__subagent_",
+                 source_csv=None):
         if output_dir is None:
             from subagent_config import SUBAGENT_CSV_DIR
             output_dir = SUBAGENT_CSV_DIR
@@ -47,6 +48,7 @@ class ReviewBuilder:
         self.start_line = start_line
         self.end_line = end_line
         self.output_path = os.path.join(output_dir, f"{prefix}{agent_num}.csv")
+        self.source_csv = Path(source_csv) if source_csv else ENRICHED_CSV
         self.rows = []
         self._source_data = None
 
@@ -55,17 +57,33 @@ class ReviewBuilder:
 
         Lines are 1-indexed matching the file (line 1 = header).
         start_line/end_line are data lines (2 = first data row).
+        Codes already in clinical_review.csv are automatically skipped.
         """
         if self._source_data is None:
             self._source_data = []
-            with open(ENRICHED_CSV, newline="") as f:
+            # Load already-reviewed codes to skip
+            clinical_csv = MAPPINGS_DIR / "clinical_review.csv"
+            reviewed_codes = set()
+            if clinical_csv.exists():
+                with open(clinical_csv, newline="") as f:
+                    reader = csv.DictReader(f)
+                    reviewed_codes = {r["source_concept_code"] for r in reader}
+
+            with open(self.source_csv, newline="") as f:
                 reader = csv.DictReader(f)
                 for i, row in enumerate(reader, start=2):  # line 2 = first data row
                     if i < self.start_line:
                         continue
                     if i > self.end_line:
                         break
+                    code = row.get("source_concept_code", row.get(list(row.keys())[0], "")).strip()
+                    if code in reviewed_codes:
+                        continue
                     self._source_data.append(row)
+
+            if reviewed_codes:
+                print(f"[ReviewBuilder] Skipped already-reviewed codes in range. "
+                      f"Items to review: {len(self._source_data)}")
 
         for row in self._source_data:
             code = row.get("source_concept_code", row.get(list(row.keys())[0], "")).strip()
