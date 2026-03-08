@@ -61,11 +61,18 @@ def main():
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--apply", action="store_true",
                         help="Apply fixes in-place")
+    parser.add_argument("--review", default=str(REVIEW_PATH),
+                        help="Path to review CSV (default: clinical_review.csv)")
+    parser.add_argument("--enriched", default=str(ENRICHED_PATH),
+                        help="Path to enriched CSV (default: unmappable_enriched.csv)")
     args = parser.parse_args()
 
-    code_to_desc, desc_to_codes = load_enriched(ENRICHED_PATH)
+    review_path = Path(args.review)
+    enriched_path = Path(args.enriched)
 
-    with open(REVIEW_PATH, newline="") as f:
+    code_to_desc, desc_to_codes = load_enriched(enriched_path)
+
+    with open(review_path, newline="") as f:
         reader = csv.reader(f)
         header = next(reader)
         rows = list(reader)
@@ -176,11 +183,11 @@ def main():
         print()
 
     if args.apply:
-        with open(REVIEW_PATH, "w", newline="") as f:
+        with open(review_path, "w", newline="") as f:
             writer = csv.writer(f)
             writer.writerow(header)
             writer.writerows(rows)
-        print(f"Applied {len(fixes)} fixes to {REVIEW_PATH}")
+        print(f"Applied {len(fixes)} fixes to {review_path}")
     else:
         print("Dry run — use --apply to write changes.")
 

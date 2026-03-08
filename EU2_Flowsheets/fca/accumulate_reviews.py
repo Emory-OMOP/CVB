@@ -106,8 +106,9 @@ def accumulate(agent_dir, prefix, count, output_path):
     return all_rows
 
 
-def qa_check(rows):
+def qa_check(rows, dest_path=None):
     """Run QA checks on accumulated rows. Returns list of issues."""
+    dest_path = dest_path or CLINICAL_REVIEW_CSV
     issues = []
 
     # 1. Duplicate source_concept_codes
@@ -149,16 +150,17 @@ def qa_check(rows):
             f"{bad_cols[:5]}"
         )
 
-    # 7. Check for codes that already exist in clinical_review.csv (BLOCKING)
-    if os.path.exists(CLINICAL_REVIEW_CSV):
-        with open(CLINICAL_REVIEW_CSV, newline="") as f:
+    # 7. Check for codes that already exist in destination CSV (BLOCKING)
+    if os.path.exists(dest_path):
+        with open(dest_path, newline="") as f:
             reader = csv.reader(f)
             next(reader, None)  # skip header
             existing_codes = {r[0] for r in reader if r}
         overlap = set(codes) & existing_codes
         if overlap:
+            dest_name = os.path.basename(dest_path)
             issues.append(
-                f"BLOCKING: Source codes already in clinical_review.csv ({len(overlap)}): "
+                f"BLOCKING: Source codes already in {dest_name} ({len(overlap)}): "
                 f"{sorted(overlap)[:10]}"
             )
 
@@ -243,7 +245,7 @@ def main():
             sys.exit(1)
 
         print("\n=== QA Checks ===")
-        issues = qa_check(rows)
+        issues = qa_check(rows, dest_path=args.dest)
         if issues:
             print("\n  ISSUES FOUND:")
             for issue in issues:
