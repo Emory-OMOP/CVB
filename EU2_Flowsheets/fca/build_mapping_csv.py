@@ -8,8 +8,12 @@ Compositional items (B) produce multi-row entries:
   - Row 1: relationship_id='Maps to', target=assessment_concept_id
   - Row 2 (if qualifier): relationship_id='Has finding site', target=qualifier_concept_id
 
-Atomic items (A) are preserved from the existing mapping.csv when available,
-otherwise emitted as noMatch placeholders for manual mapping.
+Atomic items (A) are checked in priority order:
+  1. atomic_review.csv: decision='map' → use reviewed mapping (with qualifiers)
+  2. atomic_review.csv: decision='skip'/'flag' → noMatch
+  3. existing mapping.csv: preserve prior mapping
+  4. FCA suggested_concept_id: use pre-coordinated concept
+  5. Otherwise: noMatch placeholder
 
 Unmappable items (C) are checked against clinical_review.csv:
   - decision='map': rescued with OMOP mapping from clinical review
@@ -22,6 +26,7 @@ Usage:
         --unmappable Mappings/unmappable_items.csv \
         --existing Mappings/mapping.csv \
         --clinical-review Mappings/clinical_review.csv \
+        --atomic-review Mappings/atomic_review.csv \
         --output Mappings/mapping.csv
 
     # Self-test:
@@ -191,6 +196,19 @@ def load_unmappable(path: Path) -> list[dict]:
     return rows
 
 
+_CONFIDENCE_MAP = {'high': 0.9, 'medium': 0.7, 'low': 0.5}
+
+
+def _parse_confidence(val: str) -> float:
+    """Convert confidence value to float, handling text labels."""
+    if not val:
+        return 0.0
+    try:
+        return float(val)
+    except ValueError:
+        return _CONFIDENCE_MAP.get(val.lower(), 0.5)
+
+
 def load_clinical_review(path: Path) -> dict[str, list[dict]]:
     """Load clinical_review.csv and convert 'map' decisions to CVB rows.
 
@@ -213,7 +231,7 @@ def load_clinical_review(path: Path) -> dict[str, list[dict]]:
             row1['source_domain'] = r.get('domain_id', 'Observation') or 'Observation'
             row1['relationship_id'] = 'Maps to'
             row1['predicate_id'] = r.get('predicate_id', 'broadMatch')
-            row1['confidence'] = float(r.get('confidence', 0) or 0)
+            row1['confidence'] = _parse_confidence(r.get('confidence', ''))
             row1['target_concept_id'] = int(r.get('target_concept_id', 0) or 0)
             row1['target_concept_name'] = r.get('target_concept_name', '')
             row1['target_vocabulary_id'] = r.get('target_vocabulary_id', '')
@@ -234,7 +252,7 @@ def load_clinical_review(path: Path) -> dict[str, list[dict]]:
                 row2['source_domain'] = r.get('domain_id', 'Observation') or 'Observation'
                 row2['relationship_id'] = r.get('qualifier_relationship_id', 'Has finding site') or 'Has finding site'
                 row2['predicate_id'] = r.get('predicate_id', 'broadMatch')
-                row2['confidence'] = float(r.get('confidence', 0) or 0)
+                row2['confidence'] = _parse_confidence(r.get('confidence', ''))
                 row2['target_concept_id'] = qid
                 row2['target_concept_name'] = r.get('qualifier_concept_name', '')
                 row2['target_vocabulary_id'] = 'SNOMED'
@@ -242,6 +260,69 @@ def load_clinical_review(path: Path) -> dict[str, list[dict]]:
                 row2['mapping_justification'] = r.get('mapping_justification', '')
                 row2['mapping_tool'] = r.get('mapping_tool', '')
                 row2['author_label'] = 'clinical-review'
+                row2['review_date'] = r.get('review_date', '')
+                row2['reviewer_name'] = r.get('reviewer_name', '')
+                row2['status'] = 'pending'
+                rows.append(row2)
+
+            index[code] = rows
+
+    return index
+
+
+def load_atomic_review(path: Path) -> dict[str, list[dict] | None]:
+    """Load atomic_review.csv and convert reviewed items to CVB rows.
+
+    Returns dict mapping source_concept_code → list of CVB rows (for 'map')
+    or None (for 'skip'/'flag', signaling noMatch).
+    Same CSV format as clinical_review.csv.
+    """
+    index: dict[str, list[dict] | None] = {}
+    with open(path, newline='') as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            code = r['source_concept_code']
+            if r['decision'] != 'map':
+                # skip/flag → will become noMatch
+                index[code] = None
+                continue
+
+            desc = r['source_description']
+
+            # Row 1: Maps to → target concept
+            row1 = _empty_row(code, desc)
+            row1['source_domain'] = r.get('domain_id', 'Measurement') or 'Measurement'
+            row1['relationship_id'] = 'Maps to'
+            row1['predicate_id'] = r.get('predicate_id', 'broadMatch')
+            row1['confidence'] = _parse_confidence(r.get('confidence', ''))
+            row1['target_concept_id'] = int(r.get('target_concept_id', 0) or 0)
+            row1['target_concept_name'] = r.get('target_concept_name', '')
+            row1['target_vocabulary_id'] = r.get('target_vocabulary_id', '')
+            row1['target_domain_id'] = r.get('domain_id', 'Measurement') or 'Measurement'
+            row1['mapping_justification'] = r.get('mapping_justification', '')
+            row1['mapping_tool'] = r.get('mapping_tool', '')
+            row1['author_label'] = 'atomic-review'
+            row1['review_date'] = r.get('review_date', '')
+            row1['reviewer_name'] = r.get('reviewer_name', '')
+            row1['status'] = 'pending'
+
+            rows = [row1]
+
+            # Row 2 (if qualifier): relationship → qualifier concept
+            qid = int(r.get('qualifier_concept_id', 0) or 0)
+            if qid:
+                row2 = _empty_row(code, desc)
+                row2['source_domain'] = r.get('domain_id', 'Measurement') or 'Measurement'
+                row2['relationship_id'] = r.get('qualifier_relationship_id', 'Has finding site') or 'Has finding site'
+                row2['predicate_id'] = r.get('predicate_id', 'broadMatch')
+                row2['confidence'] = _parse_confidence(r.get('confidence', ''))
+                row2['target_concept_id'] = qid
+                row2['target_concept_name'] = r.get('qualifier_concept_name', '')
+                row2['target_vocabulary_id'] = 'SNOMED'
+                row2['target_domain_id'] = r.get('domain_id', 'Measurement') or 'Measurement'
+                row2['mapping_justification'] = r.get('mapping_justification', '')
+                row2['mapping_tool'] = r.get('mapping_tool', '')
+                row2['author_label'] = 'atomic-review'
                 row2['review_date'] = r.get('review_date', '')
                 row2['reviewer_name'] = r.get('reviewer_name', '')
                 row2['status'] = 'pending'
@@ -295,6 +376,7 @@ def build_mapping_csv(
     unmappable_path: Path,
     existing_path: Path | None = None,
     clinical_review_path: Path | None = None,
+    atomic_review_path: Path | None = None,
 ) -> list[dict]:
     """Build the merged mapping.csv rows.
 
@@ -302,7 +384,7 @@ def build_mapping_csv(
     - Compositional (B): multi-row broadMatch from FCA (replaces any existing)
     - Unmappable (C) with clinical review 'map': rescued mapping from review
     - Unmappable (C) without review or 'skip': noMatch
-    - Atomic (A): preserve from existing mapping.csv if available, else noMatch
+    - Atomic (A) priority: atomic_review → existing mapping → FCA suggested → noMatch
     """
     # Load FCA outputs
     comp_rows = load_compositional(compositional_path)
@@ -313,6 +395,11 @@ def build_mapping_csv(
     review_index: dict[str, list[dict]] = {}
     if clinical_review_path and clinical_review_path.exists():
         review_index = load_clinical_review(clinical_review_path)
+
+    # Load atomic review (reviewed A items)
+    atomic_review_index: dict[str, list[dict] | None] = {}
+    if atomic_review_path and atomic_review_path.exists():
+        atomic_review_index = load_atomic_review(atomic_review_path)
 
     # Codes already handled by compositional/unmappable
     handled_codes: set[str] = set()
@@ -331,10 +418,22 @@ def build_mapping_csv(
     for code in sorted(atomic_items):
         if code in handled_codes:
             continue
-        if code in existing_index:
+        # Priority 1: atomic review (decision='map' → rows, skip/flag → None)
+        if code in atomic_review_index:
+            reviewed_rows = atomic_review_index[code]
+            if reviewed_rows is not None:
+                atomic_rows.extend(reviewed_rows)
+            else:
+                # skip/flag → noMatch
+                row = _empty_row(code, atomic_items[code].get('source_description', ''))
+                row['predicate_id'] = 'noMatch'
+                row['mapping_justification'] = 'Atomic review: skipped or flagged'
+                atomic_rows.append(row)
+        # Priority 2: existing mapping.csv
+        elif code in existing_index:
             atomic_rows.extend(existing_index[code])
+        # Priority 3: FCA pre-coordinated concept
         elif atomic_items[code]['suggested_concept_id']:
-            # Pre-coordinated concept from FCA method detection
             info = atomic_items[code]
             row = _empty_row(code, info['source_description'])
             row['source_domain'] = info['omop_domain'] or 'Measurement'
@@ -351,10 +450,10 @@ def build_mapping_csv(
             row['author_label'] = 'FCA-pipeline'
             atomic_rows.append(row)
         else:
-            # Placeholder — needs manual mapping
+            # Priority 4: noMatch placeholder
             row = _empty_row(code, atomic_items[code].get('source_description', ''))
             row['predicate_id'] = 'noMatch'
-            row['mapping_justification'] = 'FCA atomic: needs manual mapping'
+            row['mapping_justification'] = 'FCA atomic: awaiting review'
             atomic_rows.append(row)
 
     # Replace unmappable noMatch rows with clinical review mappings where available
@@ -386,12 +485,16 @@ def write_mapping_csv(rows: list[dict], path: Path) -> None:
 
 
 def run_tests() -> bool:
-    """Self-test with the 3 unit test items.
+    """Self-test with unit test items.
 
     Creates in-memory FCA CSVs matching the pipeline unit test items:
-    - Pulse (8): atomic, has existing exactMatch mapping
+    - Pulse (8): atomic, has existing exactMatch AND atomic review → review wins
+    - SpO2 (10): atomic, mapped in atomic review (no existing)
+    - Rodnan (10022): atomic, flagged in atomic review → noMatch
+    - BP Standing (99999): atomic, pre-coordinated from FCA (no review)
     - Breath Sounds Left (1120100008): compositional, 2 relationships
-    - MEWS (14950): unmappable
+    - Pre-Dialysis BP (88888): compositional, temporal qualifier
+    - MEWS (14950): unmappable, rescued by clinical review
     """
     import tempfile
 
@@ -431,13 +534,15 @@ def run_tests() -> bool:
             '"FCA concept C0600.01: intent={blood_pressure, pre_dialysis}"\n'
         )
 
-        # atomic_items.csv: Pulse (no method) + BP Standing (with method)
+        # atomic_items.csv: Pulse + SpO2 + Rodnan + BP Standing
         atomic_csv = tmp / 'atomic_items.csv'
         atomic_csv.write_text(
             'source_concept_code,source_description,fca_concept_id,'
             'fca_category,fca_assessments,fca_methods,omop_domain,'
             'suggested_concept_id,suggested_concept_name\n'
             '8,Pulse,C0418.00,A,spo2,,Observation,0,\n'
+            '10,SpO2,C0418.00,A,spo2,,Observation,0,\n'
+            '10022,Rodnan Skin Score,C0900.00,A,,,Measurement,0,\n'
             '99999,BP Standing,C0500.01,A,blood_pressure,standing,Measurement,'
             '4060833,Standing blood pressure\n'
         )
@@ -472,7 +577,37 @@ def run_tests() -> bool:
             'llm,2026-03-08\n'
         )
 
-        # existing mapping.csv: has Pulse with exactMatch
+        # atomic_review.csv: Pulse mapped (overrides existing), SpO2 mapped, Rodnan flagged
+        atomic_review_csv = tmp / 'atomic_review.csv'
+        atomic_review_csv.write_text(
+            'source_concept_code,source_description,decision,'
+            'target_concept_id,target_concept_name,'
+            'target_vocabulary_id,target_concept_code,'
+            'predicate_id,confidence,domain_id,'
+            'qualifier_concept_id,qualifier_concept_name,'
+            'qualifier_relationship_id,mapping_justification,'
+            'needs_source_data,mapping_tool,reviewer_name,'
+            'reviewer_type,review_date\n'
+            '8,Pulse,map,'
+            '4239408,Pulse rate,SNOMED,78564009,'
+            'exactMatch,0.95,Measurement,'
+            ',,,'
+            'Pulse rate reviewed,no,claude-opus-4-6+ohdsi-vocab-mcp,'
+            'claude-opus-4-6,llm,2026-03-08\n'
+            '10,SpO2,map,'
+            '4020553,Oxygen saturation measurement,SNOMED,104847001,'
+            'maps_to,0.95,Measurement,'
+            ',,,'
+            'SpO2 reviewed,no,claude-opus-4-6+ohdsi-vocab-mcp,'
+            'claude-opus-4-6,llm,2026-03-08\n'
+            '10022,Rodnan Skin Score,flag,'
+            ',,,,,,,'
+            ',,,'
+            'No OMOP concept for Rodnan,no,claude-opus-4-6+ohdsi-vocab-mcp,'
+            'claude-opus-4-6,llm,2026-03-08\n'
+        )
+
+        # existing mapping.csv: has Pulse with exactMatch (should be overridden by atomic review)
         existing_csv = tmp / 'existing_mapping.csv'
         existing_csv.write_text(
             ','.join(OUTPUT_HEADERS) + '\n'
@@ -492,16 +627,18 @@ def run_tests() -> bool:
             unmappable_path=unmappable_csv,
             existing_path=existing_csv,
             clinical_review_path=clinical_csv,
+            atomic_review_path=atomic_review_csv,
         )
 
         # --- Assertions ---
 
         # Total rows: BSL=2 (Maps to + Has finding site),
         # Pre-Dialysis BP=2 (Maps to + Has temporal context),
-        # Pulse=1 (from existing), BP Standing=1 (pre-coordinated),
-        # MEWS=1 (noMatch)
-        check('total row count is 7', len(rows) == 7,
-              f'expected 7, got {len(rows)}')
+        # Pulse=1 (atomic review overrides existing), SpO2=1 (atomic review),
+        # Rodnan=1 (flagged → noMatch), BP Standing=1 (pre-coordinated),
+        # MEWS=1 (clinical review rescue)
+        check('total row count is 9', len(rows) == 9,
+              f'expected 9, got {len(rows)}')
 
         # Index by code
         by_code: dict[str, list[dict]] = {}
@@ -538,20 +675,41 @@ def run_tests() -> bool:
                   r['author_label'] == 'FCA-pipeline',
                   f'got {r["author_label"]}')
 
-        # Pulse: 1 row from existing mapping (exactMatch)
+        # Pulse: 1 row from atomic review (overrides existing mapping)
         pulse = by_code.get('8', [])
         check('Pulse has 1 row', len(pulse) == 1,
               f'expected 1, got {len(pulse)}')
         if pulse:
-            check('Pulse predicate is exactMatch',
+            check('Pulse predicate is exactMatch (from review)',
                   pulse[0]['predicate_id'] == 'exactMatch',
                   f'got {pulse[0]["predicate_id"]}')
-            check('Pulse target is 3027018',
-                  str(pulse[0]['target_concept_id']) == '3027018',
+            check('Pulse target is 4239408 (from review, not 3027018)',
+                  str(pulse[0]['target_concept_id']) == '4239408',
                   f'got {pulse[0]["target_concept_id"]}')
-            check('Pulse author preserved as Joan',
-                  pulse[0]['author_label'] == 'Joan',
+            check('Pulse author is atomic-review (not Joan)',
+                  pulse[0]['author_label'] == 'atomic-review',
                   f'got {pulse[0]["author_label"]}')
+
+        # SpO2: 1 row from atomic review
+        spo2 = by_code.get('10', [])
+        check('SpO2 has 1 row', len(spo2) == 1,
+              f'expected 1, got {len(spo2)}')
+        if spo2:
+            check('SpO2 target is 4020553',
+                  str(spo2[0]['target_concept_id']) == '4020553',
+                  f'got {spo2[0]["target_concept_id"]}')
+            check('SpO2 author is atomic-review',
+                  spo2[0]['author_label'] == 'atomic-review',
+                  f'got {spo2[0]["author_label"]}')
+
+        # Rodnan: 1 row, flagged in atomic review → noMatch
+        rodnan = by_code.get('10022', [])
+        check('Rodnan has 1 row', len(rodnan) == 1,
+              f'expected 1, got {len(rodnan)}')
+        if rodnan:
+            check('Rodnan predicate is noMatch',
+                  rodnan[0]['predicate_id'] == 'noMatch',
+                  f'got {rodnan[0]["predicate_id"]}')
 
         # Pre-Dialysis BP: 2 rows (Maps to + Has temporal context)
         pdbp = by_code.get('88888', [])
@@ -648,6 +806,10 @@ def main(argv: list[str] | None = None) -> None:
         help='Path to clinical_review.csv (rescued C items)'
     )
     parser.add_argument(
+        '--atomic-review', type=Path, default=None,
+        help='Path to atomic_review.csv (reviewed A items)'
+    )
+    parser.add_argument(
         '--output', type=Path,
         help='Output path for merged mapping.csv'
     )
@@ -669,6 +831,7 @@ def main(argv: list[str] | None = None) -> None:
         unmappable_path=args.unmappable,
         existing_path=args.existing,
         clinical_review_path=args.clinical_review,
+        atomic_review_path=args.atomic_review,
     )
 
     write_mapping_csv(rows, args.output)

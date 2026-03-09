@@ -6,3 +6,4 @@ coverage-data.json
 __pycache__/
 *.pyc
 .DS_Store
+EU2_Flowsheets/Mappings/backups/

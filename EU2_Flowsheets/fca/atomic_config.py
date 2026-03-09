@@ -22,8 +22,8 @@ SUBAGENT_COUNT = 10
 
 # Current batch line range (atomic_enriched.csv, 1-indexed with header on line 1)
 # Batch 1: lines 2-1001 (first 1000 data rows)
-BATCH_START_LINE = 2
-BATCH_END_LINE = 1001
+BATCH_START_LINE = 4002
+BATCH_END_LINE = 5001
 
 # Accumulated output (intermediate QA file)
 ACCUMULATED_CSV = str(_PRIVATE / "subagents" / "atomic_csv" / "atomic_review__accumulated.csv")
