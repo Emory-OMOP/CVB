@@ -150,6 +150,12 @@ SELECT a.target_concept_id,
            WHEN 'Relat context of' THEN 'Has relat context'
            WHEN 'Has finding site' THEN 'Finding site of'
            WHEN 'Finding site of' THEN 'Has finding site'
+           WHEN 'Has laterality'  THEN 'Laterality of'
+           WHEN 'Laterality of'  THEN 'Has laterality'
+           WHEN 'Has method'      THEN 'Method of'
+           WHEN 'Method of'      THEN 'Has method'
+           WHEN 'Has proc site'   THEN 'Proc site of'
+           WHEN 'Proc site of'  THEN 'Has proc site'
            ELSE 'Mapped from'
        END,
        now()::date,

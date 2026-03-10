@@ -248,6 +248,12 @@ SELECT to_update,
            WHEN 'Relat context of' THEN 'Has relat context'
            WHEN 'Has finding site' THEN 'Finding site of'
            WHEN 'Finding site of' THEN 'Has finding site'
+           WHEN 'Has laterality'  THEN 'Laterality of'
+           WHEN 'Laterality of'  THEN 'Has laterality'
+           WHEN 'Has method'      THEN 'Method of'
+           WHEN 'Method of'      THEN 'Has method'
+           WHEN 'Has proc site'   THEN 'Proc site of'
+           WHEN 'Proc site of'  THEN 'Has proc site'
            ELSE 'Mapped from'
        END,
        now()::date,
@@ -298,10 +304,6 @@ FROM temp.s2c_special_update mu
          LEFT JOIN vocab.concept co ON mu.source_concept_id = co.concept_id
          LEFT JOIN vocab.concept co2 ON mu.to_update = co2.concept_id;
 
-
-UPDATE vocab.vocabulary
-SET vocabulary_version = REPLACE(CONCAT(:'vocab_id', '_', now()::timestamp::text), ' ', '_')
-WHERE vocabulary_id = 'None';
 
 INSERT INTO vocab.concept_synonym (concept_id,
                                      concept_synonym_name,

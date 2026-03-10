@@ -138,7 +138,7 @@ CREATE TABLE IF NOT EXISTS vocab.concept_relationship_metadata
     mapping_tool                VARCHAR(50),
     mapper                      VARCHAR(50),
     reviewer                    VARCHAR(50),
-    CONSTRAINT chk_crm_predicate CHECK (relationship_predicate_id IN ('eq', 'up', 'down', 'exactMatch', 'broadMatch', 'narrowMatch')),
+    CONSTRAINT chk_crm_predicate CHECK (relationship_predicate_id IN ('exactMatch', 'broadMatch', 'narrowMatch', 'relatedMatch', 'noMatch')),
     CONSTRAINT chk_crm_confidence CHECK (confidence >= 0 AND confidence <= 1),
     UNIQUE (concept_id_1, concept_id_2, relationship_id)
 );

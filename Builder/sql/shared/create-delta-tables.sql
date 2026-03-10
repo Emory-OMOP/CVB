@@ -24,7 +24,7 @@ CREATE TABLE temp.domain_delta AS (SELECT * FROM vocab.domain WHERE (domain_conc
 
 CREATE TABLE temp.relationship_delta AS (SELECT * FROM vocab.relationship WHERE (relationship_concept_id > :id_range_min AND relationship_concept_id < :id_range_max) ORDER BY relationship_concept_id);
 
-CREATE TABLE temp.vocabulary_delta AS (SELECT * FROM vocab.vocabulary WHERE (vocabulary_concept_id > :id_range_min AND vocabulary_concept_id < :id_range_max) OR vocabulary_id = 'None' ORDER BY vocabulary_id);
+CREATE TABLE temp.vocabulary_delta AS (SELECT * FROM vocab.vocabulary WHERE (vocabulary_concept_id > :id_range_min AND vocabulary_concept_id < :id_range_max) ORDER BY vocabulary_id);
 
 CREATE TABLE temp.concept_class_delta AS (SELECT * FROM vocab.concept_class WHERE concept_class_concept_id = 46233639 AND concept_class_id != 'Suppl Concept');
 

@@ -134,6 +134,12 @@ SELECT a.target_concept_id,
            WHEN 'Relat context of' THEN 'Has relat context'
            WHEN 'Has finding site' THEN 'Finding site of'
            WHEN 'Finding site of' THEN 'Has finding site'
+           WHEN 'Has laterality'  THEN 'Laterality of'
+           WHEN 'Laterality of'  THEN 'Has laterality'
+           WHEN 'Has method'      THEN 'Method of'
+           WHEN 'Method of'      THEN 'Has method'
+           WHEN 'Has proc site'   THEN 'Proc site of'
+           WHEN 'Proc site of'  THEN 'Has proc site'
            ELSE 'Mapped from'
        END,
        now()::date,
@@ -702,12 +708,7 @@ SELECT
     b.concept_id                                    AS concept_id_1,
     stu.target_concept_id                           AS concept_id_2,
     COALESCE(NULLIF(TRIM(stu.relationship_id), ''), 'Maps to') AS relationship_id,
-    CASE
-        WHEN REPLACE(trim(lower(stu.predicate_id)), 'skos:', '') IN ('exactmatch', 'eq')   THEN 'exactMatch'
-        WHEN REPLACE(trim(lower(stu.predicate_id)), 'skos:', '') IN ('broadmatch', 'up')   THEN 'broadMatch'
-        WHEN REPLACE(trim(lower(stu.predicate_id)), 'skos:', '') IN ('narrowmatch', 'down') THEN 'narrowMatch'
-        ELSE trim(stu.predicate_id)
-    END                                             AS relationship_predicate_id,
+    trim(stu.predicate_id)                          AS relationship_predicate_id,
     NULL                                            AS relationship_group,
     CONCAT('CVB:', stu.source_vocabulary_id)        AS mapping_source,
     COALESCE(stu.confidence, 0)                     AS confidence,

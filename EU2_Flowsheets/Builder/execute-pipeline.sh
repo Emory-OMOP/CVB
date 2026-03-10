@@ -36,8 +36,8 @@ PG_DB="${DB_NAME}"
 PSQL="psql -h ${PG_HOST} -U ${PG_USER} -d ${PG_DB}"
 
 # Output directory
-rm -rf /tmp/output
 mkdir -p /tmp/output
+rm -f /tmp/output/*
 
 echo "=== CVB Pipeline: ${VOCAB_NAME} ==="
 echo "Database: ${PG_DB} @ ${PG_HOST}"
@@ -151,11 +151,11 @@ ${PSQL} -f "${SHARED_SQL}/message-log.sql"
 echo ""
 echo "=== Exporting delta tables ==="
 
-# Create delta tables
+# Create delta tables — use full custom concept range (S + NS)
 ${PSQL} \
     -v vocab_id="${VOCAB_ID}" \
-    -v id_range_min=${NS_RANGE_MIN} \
-    -v id_range_max=${ID_RANGE_MAX} \
+    -v id_range_min=${ID_RANGE_MIN} \
+    -v id_range_max=${NS_RANGE_MAX} \
     -f "${SHARED_SQL}/create-delta-tables.sql"
 
 # Export restore.sql via pg_dump
