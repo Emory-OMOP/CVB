@@ -219,6 +219,13 @@ def build_json(repo_dir, vocabs):
                 "unmapped": v_unmapped,
                 "coverage": round(v_mapped / v_total * 100, 1) if v_total else 0.0,
             },
+            "source_mappings": [
+                {
+                    "file": csv_file_info["filename"],
+                    "url": f"https://github.com/Emory-OMOP/CVB/blob/main/{vocab}/Mappings/{csv_file_info['filename']}",
+                }
+                for csv_file_info in files
+            ],
         })
 
     return {
