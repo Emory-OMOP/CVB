@@ -108,14 +108,14 @@ def analyze_csv(filepath):
         if (row.get("reviewer_name") or row.get("reviewer") or "").strip():
             has_reviewer += 1
 
-    coverage = (mapped / total * 100) if total > 0 else 0.0
+    coverage = round(mapped / total * 100, 1) if total > 0 else 0.0
 
     confidence_stats = {}
     if confidences:
         confidence_stats = {
-            "mean": sum(confidences) / len(confidences),
-            "min": min(confidences),
-            "max": max(confidences),
+            "mean": round(sum(confidences) / len(confidences), 2),
+            "min": round(min(confidences), 2),
+            "max": round(max(confidences), 2),
         }
 
     metadata_completeness = {
