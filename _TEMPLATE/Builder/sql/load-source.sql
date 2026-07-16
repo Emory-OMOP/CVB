@@ -30,6 +30,7 @@ WITH all_mappings AS (
            NULL                                     AS orcid_id,
            NULL                                     AS reviewer_affiliation_name,
            status,
+           author_label,
            NULL                                     AS author_comment,
            NULL                                     AS change_required
     FROM temp.mapping
@@ -59,6 +60,7 @@ INSERT INTO temp.source_to_update (
     orcid_id,
     reviewer_affiliation_name,
     status,
+    author_label,
     author_comment,
     change_required
 )
@@ -86,6 +88,7 @@ SELECT TRIM(LEFT(source_concept_code, 50)),
        orcid_id,
        reviewer_affiliation_name,
        status,
+       author_label,
        author_comment,
        change_required
 FROM all_mappings
