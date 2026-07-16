@@ -6,13 +6,17 @@ Checks:
   1. UTF-8 readable, well-formed CSV
   2. Header normalization via COLUMN_ALIASES
   3. Required columns (warn if missing — some Mappings/ CSVs are non-mapping files)
-  4. Row-by-row validation (when required columns present):
+  4. Column registration (warn): canonical columns present; extras beyond the
+     canonical 21 are registered in KNOWN_EXTENSION_COLUMNS
+  5. Row-by-row validation (when required columns present):
      - predicate_id normalization + validation (rejects relatedMatch)
      - confidence in [0, 1]
      - target_concept_id = 0 when noMatch, > 0 otherwise
      - mapping_tool taxonomy (warn, not error)
-  5. Duplicate source_concept_code check within file
-  6. GitHub Actions ::error annotations
+     - extension dates parseable ISO, valid_start_date <= valid_end_date
+     - extension frequency numeric
+  6. Duplicate row-identity check within file (error)
+  7. GitHub Actions ::error annotations
 
 Usage:
     python scripts/validate-mapping-csv.py FILE1.csv [FILE2.csv ...]
@@ -25,11 +29,18 @@ Requires only Python stdlib.
 import csv
 import os
 import sys
+from datetime import date, datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from cvb_constants import (
     REQUIRED_MAPPING_COLUMNS,
+    EXPECTED_COLUMNS,
+    KNOWN_EXTENSION_COLUMNS,
+    DATE_EXTENSION_COLUMNS,
+    DATE_RANGE_PAIRS,
+    NUMERIC_EXTENSION_COLUMNS,
+    ROW_IDENTITY_COLUMNS,
     PREDICATE_ALIASES,
     VALID_PREDICATES,
     VALID_MAPPING_TOOLS,
@@ -42,6 +53,26 @@ REJECTED_PREDICATES = {"relatedMatch", "skos:relatedMatch"}
 def gh_annotation(level, file, line, msg):
     """Emit GitHub Actions annotation."""
     print(f"::{level} file={file},line={line}::{msg}")
+
+
+def parse_iso_date(value):
+    """Parse an ISO date, tolerating a trailing time component. None if unparseable."""
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        pass
+    try:
+        return datetime.fromisoformat(value).date()
+    except ValueError:
+        return None
+
+
+def normalize_target_id(value):
+    """Canonical form of target_concept_id for identity comparison ('0.0' -> '0')."""
+    try:
+        return str(int(float(value)))
+    except ValueError:
+        return value
 
 
 def validate_file(filepath):
@@ -81,8 +112,23 @@ def validate_file(filepath):
         # Cannot do row-level checks without required columns
         return errors, warnings
 
-    # Build column index mapping (raw header -> normalized)
-    col_map = {raw: norm for raw, norm in zip(raw_headers, normalized_headers)}
+    # 4. Column registration (warn only — neither case blocks a curator's PR)
+    missing_canonical = [c for c in EXPECTED_COLUMNS if c not in header_set]
+    if missing_canonical:
+        gh_annotation(
+            "warning", filepath, 1,
+            f"Missing canonical columns: {', '.join(missing_canonical)}"
+        )
+        warnings += 1
+
+    unregistered = sorted(header_set - set(EXPECTED_COLUMNS) - KNOWN_EXTENSION_COLUMNS)
+    if unregistered:
+        gh_annotation(
+            "warning", filepath, 1,
+            f"Unregistered extension columns (dropped at release; register in "
+            f"cvb_constants.KNOWN_EXTENSION_COLUMNS): {', '.join(unregistered)}"
+        )
+        warnings += 1
 
     # Re-read with normalized headers
     rows = []
@@ -90,9 +136,12 @@ def validate_file(filepath):
         row = {normalize_column_name(k): v for k, v in raw_row.items()}
         rows.append(row)
 
-    # 4. Row-by-row checks
-    seen_codes = {}
+    # 5. Row-by-row checks
+    seen_identities = {}
     has_mapping_tool = "mapping_tool" in header_set
+    date_cols = [c for c in DATE_EXTENSION_COLUMNS if c in header_set]
+    date_pairs = [(s, e) for s, e in DATE_RANGE_PAIRS if s in header_set and e in header_set]
+    numeric_cols = [c for c in NUMERIC_EXTENSION_COLUMNS if c in header_set]
 
     for i, row in enumerate(rows, start=2):  # line 1 is header
         predicate = (row.get("predicate_id") or "").strip()
@@ -153,15 +202,59 @@ def validate_file(filepath):
                               f"mapping_tool '{tool}' not in OHDSI taxonomy: {', '.join(sorted(VALID_MAPPING_TOOLS))}")
                 warnings += 1
 
-        # 5. Duplicate source_concept_code check
-        code = (row.get("source_concept_code") or "").strip()
-        if code:
-            if code in seen_codes:
-                gh_annotation("warning", filepath, i,
-                              f"Duplicate source_concept_code '{code}' (first seen line {seen_codes[code]})")
-                warnings += 1
+        # Extension dates: parseable ISO
+        parsed_dates = {}
+        for col in date_cols:
+            raw_value = (row.get(col) or "").strip()
+            if not raw_value:
+                continue
+            parsed = parse_iso_date(raw_value)
+            if parsed is None:
+                gh_annotation("error", filepath, i,
+                              f"{col} '{raw_value}' is not a parseable ISO date (expected YYYY-MM-DD)")
+                errors += 1
             else:
-                seen_codes[code] = i
+                parsed_dates[col] = parsed
+
+        # Extension dates: start <= end
+        for start_col, end_col in date_pairs:
+            start, end = parsed_dates.get(start_col), parsed_dates.get(end_col)
+            if start and end and start > end:
+                gh_annotation("error", filepath, i,
+                              f"{start_col} {start} is after {end_col} {end}")
+                errors += 1
+
+        # Extension frequency: numeric
+        for col in numeric_cols:
+            freq = (row.get(col) or "").strip()
+            if not freq:
+                continue
+            try:
+                float(freq)
+            except ValueError:
+                gh_annotation("error", filepath, i,
+                              f"{col} '{freq}' is not a valid number")
+                errors += 1
+
+        # 6. Duplicate row-identity check. Identity is the full tuple: repeating a
+        # source code is legitimate (multi-mapping; *_VAL rows are keyed by
+        # description). Only a fully identical tuple is a duplicate.
+        identity = tuple(
+            normalize_target_id((row.get(col) or "").strip())
+            if col == "target_concept_id"
+            else (row.get(col) or "").strip()
+            for col in ROW_IDENTITY_COLUMNS
+        )
+        if any(identity):
+            if identity in seen_identities:
+                gh_annotation(
+                    "error", filepath, i,
+                    f"Duplicate row identity {ROW_IDENTITY_COLUMNS} = {identity} "
+                    f"(first seen line {seen_identities[identity]})"
+                )
+                errors += 1
+            else:
+                seen_identities[identity] = i
 
     return errors, warnings
 
