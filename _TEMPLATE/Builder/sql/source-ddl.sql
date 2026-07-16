@@ -64,9 +64,9 @@ CREATE TABLE temp.source_to_update
     orcid_id                   TEXT,
     reviewer_affiliation_name  TEXT,
     status                     TEXT,
+    author_label               TEXT,
     author_comment             TEXT,
-    change_required            TEXT,
-    author_label               TEXT
+    change_required            TEXT
 );
 
 CREATE TABLE temp.vocab_logger

@@ -94,9 +94,14 @@ ${PSQL} \
 # STEP 5: Evaluate differences (new vs existing concepts)
 # ------------------------------------------------------------------
 echo "[5/12] Evaluating differences..."
+# Full custom concept range (S + NS): evaluate-difference.sql looks up BOTH
+# existing standard concepts (in the S range) and existing non-standard ones
+# (in the NS range) against this single interval, and separates them itself via
+# standard_concept. Passing a narrower interval silently hides existing
+# concepts, which makes a re-run recreate them as duplicates.
 ${PSQL} \
-    -v id_range_min=${NS_RANGE_MIN} \
-    -v id_range_max=${ID_RANGE_MAX} \
+    -v id_range_min=${ID_RANGE_MIN} \
+    -v id_range_max=${NS_RANGE_MAX} \
     -f "${SHARED_SQL}/evaluate-difference.sql"
 
 # ------------------------------------------------------------------
