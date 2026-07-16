@@ -24,6 +24,20 @@ quoteChar='"' and escapeChar='\\', so this script:
 The legacy manual ingest used LazySimpleSerDe and column-shifted 1,644 rows on
 embedded commas alone (ADR audit finding 2). That must not recur silently.
 
+Two escape mechanisms are in play here deliberately, and they are not
+interchangeable — do not "simplify" one into the other:
+
+    embedded quote      "  ->  ""      (RFC4180 doubling, via QUOTE_ALL)
+    embedded backslash  \  ->  \\      (escapeChar, via escape_for_opencsv)
+
+opencsv accepts both: inside a quoted field it treats a doubled quote as one
+literal quote, and it un-escapes '\\' to one backslash. Collapsing to a single
+mechanism breaks the other case — emitting \" for quotes would leave the
+doubled-quote path unhandled, and dropping the backslash doubling would let a
+description ending in '\' escape its own closing quote and shift every
+subsequent column. That is the exact 1,644-row failure this file exists to
+prevent. Verified by round-trip in /tmp/claude/verify-release-artifact.sh.
+
 Usage:
     python scripts/package-mapping-release.py INPUT.csv OUTPUT.csv
 

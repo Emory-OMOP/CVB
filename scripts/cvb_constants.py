@@ -68,16 +68,23 @@ DATE_RANGE_PAIRS = [("valid_start_date", "valid_end_date")]
 # Extension columns validated as numeric.
 NUMERIC_EXTENSION_COLUMNS = ["source_frequency", "ws_frequency"]
 
-# Row identity for the duplicate check (ADR D9 layer 1). Multi-mapping to
-# distinct targets is legitimate, and *_VAL vocabularies legitimately repeat a
-# source code across description-keyed value rows (audit finding 11) — the
-# description is a join key there, not a label. Only a fully identical tuple is
-# a duplicate.
+# Row identity for the duplicate check (ADR D9 layer 1). Only a fully identical
+# tuple is a duplicate. Three legitimate patterns must survive it:
+#   - multi-mapping: one source code to distinct targets;
+#   - *_VAL vocabularies repeat a source code across description-keyed value
+#     rows (audit finding 11) — the description is a join key, not a label;
+#   - multi-relationship: one source/target pair related more than once, e.g.
+#     'Maps to' alongside 'Has finding site', or the 'Maps to value' rows D6
+#     mandates for Measurement items with values. These are distinct
+#     concept_relationship rows.
+# Mirrored by the dbt test mapping_sssom_duplicate_rows.sql in
+# emory_omop_enterprise — the two must agree on what a duplicate is.
 ROW_IDENTITY_COLUMNS = [
     "source_vocabulary_id",
     "source_concept_code",
     "source_description",
     "target_concept_id",
+    "relationship_id",
 ]
 
 # OHDSI-aligned predicates (relationship predicates only)

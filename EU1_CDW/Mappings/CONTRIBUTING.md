@@ -78,11 +78,12 @@ Predicates align with the OHDSI Vocabulary WG standard. Legacy `skos:` prefixed 
 
 ## Duplicates: row identity
 
-A row's identity is the tuple **(`source_vocabulary_id`, `source_concept_code`, `source_description`, `target_concept_id`)**. Only a fully identical tuple is a duplicate, and CI fails on it.
+A row's identity is the tuple **(`source_vocabulary_id`, `source_concept_code`, `source_description`, `target_concept_id`, `relationship_id`)**. Only a fully identical tuple is a duplicate, and CI fails on it.
 
 Repeating a `source_concept_code` is legitimate and common:
 
 - **Multi-mapping** — one source code that genuinely means two things maps to two distinct targets.
+- **Multi-relationship** — one source/target pair related more than once: a `Maps to` edge alongside a `Has finding site` / `Has context` / `Has dir device` attribute edge, or the `Maps to value` row required for a Measurement item that carries a value. These become distinct `concept_relationship` rows; the pair is not redundant.
 - **`*_VAL` vocabularies are description-keyed** — the device pull matches on the description *substring*, so the 48 `STRUCTURED_RESULT_TYPE_VAL` codes expand to 635 rows that share a code and differ by description fragment. The description is a join key, not a label. Do not "clean up" these rows by collapsing them.
 
 ## Validation Checklist
