@@ -1,6 +1,8 @@
 # CVB
 CVB, or Custom Vocabulary Builder, is designed to interface with SSSOM-based mappings hosted in GoogleSheets together with self-hosted runners in the Tufts Azure environment to create custom representations of semantic concepts with ID assignments in [OMOP Common Data Model (CDM)](https://www.ohdsi.org/data-standardization/).
 
+**Design record:** [docs/architecture/cvb_builder_ADR.md](docs/architecture/cvb_builder_ADR.md) — the CVB Builder ADR (build/release boundary, delta commit posture, template drift, concept-id interval contract, resolution model). Design questions are filed as consults against its atlas node, not decided in PR bodies.
+
 ## Reserved Ranges
 Studies and projects that want to disseminate custom concept_ids can reserve a block in the two-bil concept_ids (max: 2.147b).
 | Project Name | Block Range Start (bil) | Block Range End (bil) |
