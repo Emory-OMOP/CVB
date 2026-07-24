@@ -3,7 +3,9 @@ CVB, or Custom Vocabulary Builder, is designed to interface with SSSOM-based map
 
 **Design record:** [docs/architecture/cvb_builder_ADR.md](docs/architecture/cvb_builder_ADR.md) — the CVB Builder ADR (build/release boundary, delta commit posture, template drift, concept-id interval contract, resolution model). Design questions are filed as consults against its atlas node, not decided in PR bodies.
 
-**Architecture:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — a descriptive inventory of what CVB is today: inputs, the reference data a build requires, the module ACTIVE/DORMANT inventory, the two release seams, and known defects. Read it before assuming anything about where the pipeline runs or what it consumes. Note that the sections of this README below describe a retired Google Sheets / Azure-runner architecture and are superseded by it.
+**Target architecture:** [docs/architecture/cvb_architecture.md](docs/architecture/cvb_architecture.md) — what CVB *is for*: the shared custom-vocabulary exchange for the Tufts CHoRUS implementers (drafts in, ratified ontology exports out, `id-registry.csv` range allocation), and specifically what CVB at Emory is within it. Much is not yet built; it is marked accordingly. The Postgres Builder is **retired** (ADR D10).
+
+**As-built inventory:** [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — a descriptive inventory of what CVB is *today*: inputs, reference data, the module ACTIVE/DORMANT inventory, the two release seams, and known defects. Note that the sections of this README below describe a retired Google Sheets / Azure-runner architecture and are superseded.
 
 ## Reserved Ranges
 Studies and projects that want to disseminate custom concept_ids can reserve a block in the two-bil concept_ids (max: 2.147b).
