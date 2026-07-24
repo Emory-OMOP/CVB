@@ -1,5 +1,7 @@
 # CVB Architecture — descriptive inventory
 
+> **Superseded in direction (2026-07-24, ADR D10 / PR #7).** This document is an *as-built* inventory written before the architecture was redefined. Since then, ADR **D10** has **retired the Postgres Builder**, and CVB's target is the shared custom-vocabulary exchange described in [`architecture/cvb_architecture.md`](architecture/cvb_architecture.md) — minting moves to each site's local implementation (Emory = warehouse). So the many entries below that describe the Builder as **ACTIVE** are accurate as a record of what the code *was*, but the Builder is now retired and those pipelines are not the go-forward path. Read this for the honest inventory of the historical build; read `cvb_architecture.md` for where CVB is going. Individual Builder entries are annotated **[RETIRED — D10]** where it matters most; the rest stand as history.
+
 **What this document is.** A description of what CVB *is* as of the commit named below: its inputs, the reference data it requires, which modules are alive, how it connects to Emory's warehouse, and how a build is actually run. Every load-bearing claim carries a `file:line` citation. Where the code does not settle a question, this document says **UNCERTAIN** rather than guessing.
 
 **What this document is not.** It is not a design record and it rules nothing. CVB's design authority is [`docs/architecture/cvb_builder_ADR.md`](architecture/cvb_builder_ADR.md) (D1–D9, Accepted 2026-07-23), whose standing address is the atlas node `cvb-builder-adr`. Where a decision is needed, this document points there. Several things described below are known defects; they are inventoried, not resolved.
@@ -95,7 +97,7 @@ Seven rows at the repo root (`id-registry.csv:4-10`), with half-open `[min, max)
 
 Read by `scripts/new-vocab.sh` for collision checking and appended to on scaffold (`new-vocab.sh:164`). The ADR names it the **sole** allocation authority (D4, `cvb_builder_ADR.md:75`) and the three archived vocabularies' inverted layouts grandfathered-frozen (D5.3, `:101`). The registry's own rows carry no such annotation on this tree — D5.3's "annotated with registry comment lines" is not shipped.
 
-**UNCERTAIN:** `Winship` (2000) and `BHC` (2002) have registry rows but no package directory anywhere in the repo. They may be reservations held for work living elsewhere.
+**Resolved (2026-07-24):** `Winship` (2000) and `BHC` = Brain Health (2002) have registry rows but no package directory because they are **local input implementers** — Emory-internal groups (with Nursing) that produce SSSOM mapping drafts — holding reserved ranges ahead of their content. Not orphan rows. See `cvb_architecture.md` §3 (the two "communities": local input implementers vs central Tufts).
 
 **Stale duplicate:** `README.md:6-14` carries a "Reserved Ranges" table that disagrees with the registry (it lists GIS at 2.0515–2.0525, which matches no registry row). ADR D4 rules the registry authoritative and the README table stale; the correction is not shipped.
 
@@ -166,9 +168,9 @@ Related gap: `docker-compose.yml` sets no `POSTGRES_DB`, so the init script runs
 
 | Module | What it is | Status | Evidence |
 |---|---|---|---|
-| `Builder/sql/shared/` (12 files, 2,018 lines) | The canonical pipeline SQL | **ACTIVE** | Invoked as steps 4–12 by every package's `execute-pipeline.sh` (`EU1_CDW/Builder/execute-pipeline.sh:87-153`); governed by the ADR |
-| `<PACKAGE>/Builder/execute-pipeline.sh` | Per-package orchestrator, one full copy per package | **ACTIVE, duplicated** | ADR D7 (`cvb_builder_ADR.md:132`) rules it should become a 2-line shim over a canonical root copy; not shipped |
-| `Builder/sql/tests/test_multirow_pipeline.sql` | Multirow-pipeline assertion suite | **ACTIVE — but unwired** | Exists; no workflow or script invokes it. **UNCERTAIN** whether it is ever run |
+| `Builder/sql/shared/` (12 files, 2,018 lines) | The canonical pipeline SQL | **[RETIRED — D10]** (was ACTIVE) | Retired by ADR D10; minting moves to the local warehouse (see `cvb_architecture.md`). Was invoked as steps 4–12 by every package's `execute-pipeline.sh` |
+| `<PACKAGE>/Builder/execute-pipeline.sh` + `docker/` + `promote-deltas.sh` / `diff-deltas.sh` / `package-release.sh` + `release-vocab.yml` | The dockerized build + promote + release machinery | **[RETIRED — D10]** (was ACTIVE) | Retired wholesale by D10; the parked `128c39e` that hardened it is abandoned, not landed. D7's shim/extraction plans are moot |
+| `Builder/sql/tests/test_multirow_pipeline.sql` | Multirow-pipeline assertion suite | **[RETIRED — D10]** (was ACTIVE, unwired) | Never wired to CI; retired with the Builder |
 | `EU1_CDW/` | Cerner CDW legacy vocabulary, base 2003, 36,858-row sheet; replaces the retired `omop_etl.datamappings` SharePoint sheet | **ACTIVE** | `EU1_CDW/README.md:3`; `id-registry.csv:10`; `Ontology/` holds only `.gitkeep` — never built |
 | `EU2_Flowsheets/` | Epic flowsheet vocabulary, base 2001, 57,428-row sheet | **ACTIVE** | `id-registry.csv:9`; the ADR calls it "the one live package" (`:9`); `Ontology/` holds only `.gitkeep` |
 | `_TEMPLATE/` | Scaffold copied by `new-vocab.sh` | **ACTIVE, and currently in sync** | ADR D7 (`:138`) records the historical drift — `_TEMPLATE` froze at `28b8b88` while EU2 advanced at `48bb5ae`, and EU1_CDW was scaffolded from EU2 rather than from `_TEMPLATE`. PR #3 back-ported the fixes, and on this tree `_TEMPLATE/Builder` is byte-identical to `EU2_Flowsheets/Builder` apart from `create-general-concepts.sql`, the one designed-per-vocab file — the end state D7 predicted (`:140`). EU1's copies differ from EU2's only in comments. **The drift is cured; the mechanism that produced it is not** — the shims and CI drift gate D7 specifies are unshipped, so nothing prevents recurrence |
