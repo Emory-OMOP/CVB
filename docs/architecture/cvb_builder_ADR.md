@@ -171,6 +171,22 @@ Full byte-determinism (frozen dates, deterministic id handout order) is **explic
 
 **Alternatives rejected.** *Dual-concept model (S + NS per source item, the March WIP's table):* violates `(vocabulary_id, concept_code)` uniqueness and mints a replacement liability per item. *Automatic S-mint for noMatch items (custom standard until a community concept appears):* the same liability concentrated exactly where community concepts are most likely to arrive later, and replacement is not additive — rejected as *pipeline default*; deliberate, human-adjudicated local-standard minting remains the reserved capability of D9.4. *Explicit 0-target rows in `concept_relationship_delta`:* encodes absence as data; later curation would have to replace rows instead of adding one, and concept 0 edges are not community convention.
 
+### D10 — The Postgres Builder is retired; CVB becomes the shared exchange, minting goes local (ruled by Daniel, 2026-07-24)
+
+**Decision.** The dockerized Postgres Builder — `Builder/sql/shared/*`, the per-package `Builder/` copies, `execute-pipeline.sh`, `docker/` + `docker-compose.yml`, `promote-deltas.sh` / `diff-deltas.sh` / `package-release.sh`, `hard-reset.sql`, and `release-vocab.yml` — is **retired**. It no longer assigns official concept ids and no longer maintains a git-committed `Ontology/` record. The parked interval-resolution work (`chore/cvb-interval-resolution`, `128c39e`) is **abandoned, not landed**: it hardened a builder that is being removed. The resolution model it encoded (D9) is not lost — it is reimplemented in each site's local mint.
+
+CVB's role is redefined as the **shared custom-vocabulary exchange** for the Tufts CHoRUS CVB implementers: SSSOM-compliant draft mappings in, ratified ontology exports out, and `id-registry.csv` as the shared range-allocation authority. **Minting is a local implementer's concern** — Emory's is its warehouse (Trino/dbt), documented in `emory_omop_enterprise`. The successor design is [`cvb_architecture.md`](cvb_architecture.md).
+
+**Rationale.** The builder was built as the do-everything center of the repo: it loaded a licensed vocabulary bundle into its own Postgres, minted ids, and committed deltas back to git as the authoritative record. That model put the id-authority, the licensed-data dependency, and a destructive rebuild-in-place engine all inside the repo. The federation model relocates each of those: minting belongs to whichever infrastructure a site already runs (for Emory, the warehouse, where the vocabulary bundle and the mapping sheet already live side by side), and the shared surface shrinks to the interoperable minimum — drafts, exports, and range allocation. A second minting engine inside CVB would only reintroduce cross-engine drift (the exact disease D7 fought) and a second id-authority to keep reconciled.
+
+**Consequences.**
+- Most of D2 (git `Ontology/` as the id-registry-of-record), D3 (the promote gate), D5 (the Postgres SQL guards), D6 (Postgres re-runnability), D7 (Builder template drift), and D8's release workflow describe machinery that no longer runs. They stand as **history**, superseded by this decision and the federation architecture.
+- `Ontology/` survives in *name* but changes meaning: it is now a **dated export of ratified items** (`…__YYYYMMDD`), not the source of truth and not written by an in-repo build. `Mappings/` is renamed `ontology_drafts/`.
+- `id-registry.csv` and the SSSOM validator/CI survive and grow (community ranges; verify-on-contribute).
+- `docs/ARCHITECTURE.md` (the as-built inventory) is updated to mark the Builder retired and to reflect the exchange model.
+
+**Alternatives rejected.** *Keep the Postgres Builder as a portable second implementation for external users* — rejected: it is a second id-authority and a drift source, and external consumers need the published exports, not a builder to run. *Make the builder deterministic and warehouse-agnostic* — solves nothing the local mint doesn't already solve, at the cost of maintaining a retired engine.
+
 ## Disposition of `chore/cvb-builder-cleanup` (ruled by this ADR; merged 2026-07-16 as PR #3, `origin/main` 3c63dfd, commit 5b2a879, covering all three packages)
 
 | Change in the branch | Verdict | Ruling |
