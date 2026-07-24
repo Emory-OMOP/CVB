@@ -19,7 +19,7 @@ The two levels are not the same thing, and this document qualifies which it mean
 
 So a local's ontology is the union of *(the ratified network standards it implements)* + *(its own local custom vocabularies)*. The shared id-range registry (§4) is what keeps those two — and every other site's — from colliding: each mints only in its own sanctioned range. Until central CVB ratifies a locally-minted vocabulary, its ids are a **proposal**, authoritative only locally.
 
-For Emory specifically: the warehouse (Trino/dbt) is where Emory both *implements* ratified standards **and** *mints its own* local custom vocabularies and stages proposals. Those local internals are documented in `emory_omop_enterprise`, **not here**. The division of labor: the **network-authoritative ratified mint is central CVB's**; a **site's own-vocabulary mint and its implementation of ratified standards are the site's**.
+For Emory specifically: Emory both *implements* ratified standards **and** *mints its own* local custom vocabularies and stages proposals. The **mint code is part of this repo** (`Emory-OMOP/CVB`) — Emory's local implementation of CVB, the warehouse-native successor to the retired Postgres Builder — and it **executes in AWS account 416** (Glue/Athena/S3), reading `mapping_sssom` and the vocabulary bundle there. It is **not** in `emory_omop_enterprise` (that is the OMOP CDM/ETL pipeline, a separate concern). The division of labor: the **network-authoritative ratified mint is central CVB's**; a **site's own-vocabulary mint and its implementation of ratified standards are the site's** — code here, execution in the site's own infrastructure (Emory's is account 416).
 
 **What CVB at Emory is not:**
 - Not the network mint authority (central CVB mints the ratified standard; Emory implements it, and separately mints/proposes its own).
@@ -120,7 +120,7 @@ What *does* exist today: the draft sheets themselves (EU1_CDW, EU2_Flowsheets), 
 ## 7. Out of scope / open questions
 
 Deliberately **not** defined here — each has a home elsewhere:
-- **The local mint internals** (how Emory assigns ids, the registry substrate, the merged concept surface, freeze-vs-track of descriptive fields, `domain_id` gating) → Emory's business, documented in `emory_omop_enterprise`.
+- **The local mint internals** (how Emory assigns ids, the registry substrate, the merged concept surface, freeze-vs-track of descriptive fields, `domain_id` gating) → Emory's local implementation. Its **code lives in this repo** (the warehouse-native successor to the retired Postgres Builder); it **executes in AWS account 416** (Glue/Athena/S3) — **not** `emory_omop_enterprise`. Out of scope for *this* (exchange) document; the mint is its own build.
 - **Tufts's central approval process** → the central authority's, not ours.
 - **Conflict-testing on pull** — how a pulled community item is checked against local state before use → deferred; flagged for a later design pass.
 - **Whether `Emory-OMOP/CVB` is the local node or becomes the central repo** — the up/down sync is aspirational; the relationship to a future central repo is undecided.
